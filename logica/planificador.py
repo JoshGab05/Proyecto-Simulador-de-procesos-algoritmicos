@@ -36,10 +36,11 @@ class Planificador:
         if not self.algoritmo_seleccionado:
             return None
 
+        # NOTA: SRTF apunta al módulo real del archivo .py
         mapping = {
             'FCFS': ('algoritmos.fcfs', 'AlgoritmoFIFO'),
             'SJF': ('algoritmos.sjf', 'AlgoritmoSJF'),
-            'SRTF': ('algoritmos.srtf', 'AlgoritmoSRTF'),
+            'SRTF': ('algoritmos.srtf.AlgoritmoSRTF', 'AlgoritmoSRTF'),
             'Round Robin': ('algoritmos.round_robin', 'AlgoritmoRoundRobin'),
         }
         if self.algoritmo_seleccionado not in mapping:
@@ -63,6 +64,14 @@ class Planificador:
     def eliminar_proceso(self, pid):
         for p in self._procesos:
             if getattr(p, 'pid', None) == pid:
+                # liberar memoria si estaba asignada
+                if getattr(p, "_mem_asignada", False):
+                    try:
+                        self.gestor_memoria.liberar(p.pid)
+                    except Exception:
+                        pass
+                    p._mem_asignada = False
+
                 p.forzar_finalizacion()
                 if p not in self.historial:
                     self.historial.append(p)
@@ -132,12 +141,22 @@ class Planificador:
         if proc_elegido is None:
             proc_elegido = candidatos[0]
 
-        # Marcar y ejecutar 1 unidad
+        # Marcar y (si aplica) reservar memoria
         self._marcar_en_ejecucion(proc_elegido)
+
+        # Ejecutar 1 unidad de CPU
         proc_elegido.avanzar(delta=1)
 
-        # Si terminó, a historial
+        # Si terminó, a historial y liberar memoria
         if proc_elegido.esta_terminado():
+            # liberar memoria si estaba asignada
+            if getattr(proc_elegido, "_mem_asignada", False):
+                try:
+                    self.gestor_memoria.liberar(proc_elegido.pid)
+                except Exception:
+                    pass
+                proc_elegido._mem_asignada = False
+
             if proc_elegido not in self.historial:
                 self.historial.append(proc_elegido)
             self.pid_en_ejecucion = None
@@ -166,6 +185,15 @@ class Planificador:
     def mover_a_historial(self, proceso):
         if proceso not in self.historial:
             self.historial.append(proceso)
+
+        # liberar memoria si estaba asignada
+        if getattr(proceso, "_mem_asignada", False):
+            try:
+                self.gestor_memoria.liberar(proceso.pid)
+            except Exception:
+                pass
+            proceso._mem_asignada = False
+
         proceso.forzar_finalizacion()
         if self.pid_en_ejecucion == getattr(proceso, 'pid', None):
             self.pid_en_ejecucion = None
@@ -185,6 +213,22 @@ class Planificador:
 
     def _marcar_en_ejecucion(self, proceso):
         self.pid_en_ejecucion = getattr(proceso, 'pid', None)
+
+        # ---- RESERVA DE MEMORIA al entrar a CPU (una sola vez) ----
+        if not getattr(proceso, "_mem_asignada", False):
+            mem_req = int(getattr(proceso, "memoria_requerida", 0) or 0)
+            if mem_req > 0:
+                try:
+                    ok = self.gestor_memoria.reservar(proceso.pid, mem_req)
+                    if ok:
+                        proceso._mem_asignada = True
+                    else:
+                        # si no hay memoria suficiente, simplemente no marcamos la bandera
+                        # (se puede añadir política para bloquear ejecución si quieres)
+                        proceso._mem_asignada = False
+                except Exception:
+                    proceso._mem_asignada = False
+
         for p in self._procesos:
             if p is proceso:
                 if not p.esta_terminado():
