@@ -1,5 +1,6 @@
 # interfaz_grafica/panel_control.py
 
+import tkinter as tk
 import customtkinter as ctk
 import random
 from logica.proceso import Proceso
@@ -12,6 +13,8 @@ class PanelControl(ctk.CTkScrollableFrame):  # <— scrollable
         self.gestor_memoria = gestor_memoria
         self.planificador = planificador
         self.panel_estado = panel_estado
+        self._after_id=None
+        self._sim_running=False
 
         # ---------- Título ----------
         self.label_titulo = ctk.CTkLabel(self, text="Controles", font=("Arial", 20))
@@ -136,11 +139,14 @@ class PanelControl(ctk.CTkScrollableFrame):  # <— scrollable
 
     def _aplicar_algoritmo(self):
         try:
+            self.detener_planificador()  # evita afters colgando
             self.planificador.aplicar_algoritmo()
             self.panel_estado.actualizar_estado()
             self.label_info.configure(text=f"Algoritmo preparado: {self.alg_var.get()}")
         except Exception:
             self.label_info.configure(text="No se pudo preparar el algoritmo (¿módulo vacío?).")
+
+
 
     def crear_proceso(self):
         nombre = (self.entry_nombre.get() or "").strip()
@@ -203,26 +209,56 @@ class PanelControl(ctk.CTkScrollableFrame):  # <— scrollable
         self.label_info.configure(text=f"➕ Se agregaron {n} procesos aleatorios (algoritmo: {actual_alg}).")
 
     # ---------- Simulación ----------
+    
     def _tick_sim(self):
-        if self.planificador.ejecutando:
-            try:
-                self.planificador.simular_tick(delta=1)
+        # si ya no estamos corriendo o el widget fue destruido, salir
+        if not self._sim_running or not self.winfo_exists():
+            return
+        try:
+            self.planificador.simular_tick(delta=1)
+            if self.panel_estado.winfo_exists():
                 self.panel_estado.actualizar_estado()
-            finally:
-                self.after(1000, self._tick_sim)
+        except Exception as e:  # <- captura TODO para no “matar” el loop
+            self._sim_running = False
+            self._cancel_after()
+        # opcional: ver error en la UI
+            try:
+                self.label_info.configure(text=f"Error en tick: {e}")
+            except Exception:
+                pass
+            return
+    # reprograma el próximo tick
+        self._after_id = self.after(1000, self._tick_sim)  # cambia a 5000 si 1 unidad = 5 s
 
     def iniciar_planificador(self):
+        self._cancel_after()
         try:
             self.planificador.iniciar()
+            self._sim_running = True
             self.label_info.configure(text="▶️ Simulación iniciada.")
-            self._tick_sim()
+        # lanza el primer tick “ya” para que se vea vivo
+            self._after_id = self.after(1, self._tick_sim)
         except Exception:
+            self._sim_running = False
             self.label_info.configure(text="No se pudo iniciar la simulación.")
 
     def detener_planificador(self):
+        self._sim_running = False
+        self._cancel_after()
         try:
             self.planificador.detener()
             self.label_info.configure(text="⛔ Simulación detenida.")
             self.panel_estado.actualizar_estado()
         except Exception:
             self.label_info.configure(text="No se pudo detener la simulación.")
+
+    def _cancel_after(self):
+        if getattr(self, "_after_id", None) is not None:
+            try:
+                self.after_cancel(self._after_id)
+            except Exception:
+                pass
+        self._after_id = None
+
+    
+    

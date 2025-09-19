@@ -1,1 +1,7 @@
-/.venv
+﻿__pycache__/
+*.pyc
+.venv/
+.env
+.vscode/
+.idea/
+*.zip

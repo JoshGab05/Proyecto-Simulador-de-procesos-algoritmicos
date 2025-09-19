@@ -1,58 +1,46 @@
-# logica/proceso.py
-# Modelo de proceso según enunciado:
-#  - PID (auto)
-#  - Nombre
-#  - Tiempo en CPU (total requerido)
-#  - Instante de llegada
-#  - Quantum (cuando aplique)
-
 import itertools
-
 _pid_seq = itertools.count(1)
 
 class Proceso:
-    def __init__(self, nombre, memoria_requerida=0, duracion=0, llegada=0, quantum=None, pid=None):
-        """
-        Compatibilidad hacia atrás:
-          - 'duracion' se mantiene y ahora representa 'Tiempo en CPU total'.
-          - 'memoria_requerida' se conserva para la UI/estadística que ya tenías.
-        Nuevos campos:
-          - 'llegada'  -> instante de llegada (entero)
-          - 'quantum'  -> quantum (opcional, útil para Round Robin)
-        """
-        self.pid = pid if pid is not None else next(_pid_seq)
-        self.nombre = nombre
-        self.memoria_requerida = int(memoria_requerida) if memoria_requerida is not None else 0
+    def __init__(self, nombre, memoria_requerida=0, duracion=1, llegada=0, quantum=None, pid=None):
+        self.pid = int(pid) if pid is not None else next(_pid_seq)
 
-        # Enunciado
-        self.tiempo_cpu_total = int(duracion)            # Tiempo en CPU total requerido
-        self.instante_llegada = int(llegada)             # Instante de llegada
-        self.quantum = None if quantum in (None, "", 0) else int(quantum)
+        self.nombre = nombre or f"Proceso {self.pid}"
+        self.memoria_requerida = int(memoria_requerida or 0)
 
-        # Estado de simulación
-        self.tiempo_restante = int(duracion)
-        self.estado = 'En espera'  # En espera | En ejecución | Finalizado
+        # CPU: total y restante
+        self.cpu_total = int(duracion if duracion is not None else 1)
+        self.cpu_restante = self.cpu_total
 
-    # Utilidades mínimas (compatibles con tu versión previa)
-    def avanzar(self, delta=1):
-        """Consume 'delta' unidades de CPU del proceso."""
-        if self.estado != 'Finalizado':
-            self.tiempo_restante = max(0, self.tiempo_restante - int(delta))
-            if self.tiempo_restante == 0:
-                self.estado = 'Finalizado'
+        # llegada (mapea al nombre que usa el planificador)
+        self.llegada = int(llegada or 0)
+        self.instante_llegada = self.llegada
+
+        # quantum por proceso (opcional)
+        self.quantum = int(quantum) if quantum is not None else None
+
+        # estado inicial
+        self.estado = 'En espera'
+
+    def avanzar(self, delta: int = 1):
+        """Consume exactamente 1 unidad por tick."""
+        if self.esta_terminado():
+            self.estado = 'Finalizado'
+            return
+        self.estado = 'En ejecución'
+        self.cpu_restante = max(0, self.cpu_restante - 1)
+        if self.cpu_restante == 0:
+            self.estado = 'Finalizado'
 
     def forzar_finalizacion(self):
-        """Marca el proceso como finalizado inmediatamente."""
-        self.tiempo_restante = 0
+        self.cpu_restante = 0
         self.estado = 'Finalizado'
 
-    def esta_terminado(self):
-        return self.estado == 'Finalizado'
+    def esta_terminado(self) -> bool:
+        return self.cpu_restante <= 0
 
     def __str__(self):
-        pid_corto = str(self.pid)[-4:]
-        qtxt = self.quantum if self.quantum is not None else '-'
-        return (f"[{self.estado}] {self.nombre} (PID:{pid_corto}) | "
-                f"RAM: {self.memoria_requerida} MB | "
-                f"CPU total: {self.tiempo_cpu_total}s | Llegada: {self.instante_llegada} | "
-                f"Quantum: {qtxt} | Restante: {self.tiempo_restante}s")
+        qtxt = self.quantum if self.quantum is not None else "-"
+        return (f"[{self.estado}] {self.nombre} (PID:{self.pid}) | RAM: {self.memoria_requerida} MB | "
+                f"CPU total: {self.cpu_total} s | llegada: {self.instante_llegada} | Quantum: {qtxt} | "
+                f"Restante: {self.cpu_restante} s")
