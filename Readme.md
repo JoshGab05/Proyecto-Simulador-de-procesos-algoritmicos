@@ -97,6 +97,11 @@ Ejecuta el archivo principal:
 
 - Round Robin: Atiende por turnos con un quantum definido.
 ## Capturas de pantalla del programa en funcionamiento
+<img width="1009" height="633" alt="fcfs" src="https://github.com/user-attachments/assets/93879017-aeb7-4c24-8dd3-287aa9638e9b" />
+
+
+
+
 ## Autores
 
 Proyecto desarrollado en el curso de Sistemas Operativos.
