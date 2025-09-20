@@ -23,8 +23,6 @@ Fue desarrollado en **Python** con soporte para interfaz gráfica usando **Custo
 
 ##  Estructura del proyecto
 
----
-
 Proyecto-Simulador-de-procesos-algoritmicos/
 │── algoritmos/ # Implementación de los algoritmos de planificación
 │ ├── fcfs.AlgoritmoFIFO.py
