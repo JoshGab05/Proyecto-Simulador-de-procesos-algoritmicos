@@ -61,10 +61,12 @@ Proyecto-Simulador-de-procesos-algoritmicos/
    cd Proyecto-Simulador-de-procesos-algoritmicos
 
 2. Crear y activar entorno virtual:
+    ```bash
     py -m venv .venv
     .\.venv\Scripts\activate   # En Windows PowerShell
 
 3. Instalar dependencias:
+    ```bash
     pip install -r requirements.txt
 
 ## Uso
