@@ -1,11 +1,11 @@
-# 🖥️ Proyecto: Simulador de Procesos Algorítmicos
+#  Proyecto: Simulador de Procesos Algorítmicos
 
 Este proyecto es un **simulador gráfico de planificación de procesos** que implementa distintos **algoritmos de planificación de CPU**.  
 Fue desarrollado en **Python** con soporte para interfaz gráfica usando **CustomTkinter**.
 
 ---
 
-## 🚀 Características principales
+##  Características principales
 - Simulación de **procesos con llegada, duración, quantum y memoria RAM**.
 - Interfaz gráfica moderna con **CustomTkinter**.
 - Visualización en tiempo real de:
@@ -22,6 +22,9 @@ Fue desarrollado en **Python** con soporte para interfaz gráfica usando **Custo
 ---
 
 ##  Estructura del proyecto
+
+---
+
 Proyecto-Simulador-de-procesos-algoritmicos/
 │── algoritmos/ # Implementación de los algoritmos de planificación
 │ ├── fcfs.AlgoritmoFIFO.py
@@ -41,7 +44,6 @@ Proyecto-Simulador-de-procesos-algoritmicos/
 │
 │── main.py # Punto de entrada principal
 │── requirements.txt # Dependencias del proyecto
-
 
 ---
 
