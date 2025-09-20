@@ -176,7 +176,7 @@ class PanelControl(ctk.CTkScrollableFrame):  # <— scrollable
         try:
             self.planificador.agregar_proceso(p)
             self.label_info.configure(
-                text=f"➕ Proceso agregado: {p.nombre} | CPU:{cpu}s | Llegada:{llegada} | Q:{quantum if quantum is not None else '-'} | RAM:{ram_req}MB"
+                text=f" Proceso agregado: {p.nombre} | CPU:{cpu}s | Llegada:{llegada} | Q:{quantum if quantum is not None else '-'} | RAM:{ram_req}MB"
             )
             self.panel_estado.actualizar_estado()
         except Exception as e:
@@ -199,7 +199,8 @@ class PanelControl(ctk.CTkScrollableFrame):  # <— scrollable
         actual_alg = self.alg_var.get()
 
         for _ in range(n):
-            nombre = f"Auto {len(self.planificador.obtener_procesos()) + 1}"
+            # Cambio nombre a los procesos aleatorios
+            nombre = f"Prueba {len(self.planificador.obtener_procesos()) + 1}"
             cpu = random.randint(1, cpu_max)
             llegada = random.randint(0, lleg_max)
             quantum = random.randint(1, qmax) if actual_alg == "Round Robin" else None
