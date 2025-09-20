@@ -96,7 +96,7 @@ Ejecuta el archivo principal:
 - SRTF: Atiende primero al proceso con menor tiempo restante (preemptivo).
 
 - Round Robin: Atiende por turnos con un quantum definido.
-
+## Capturas de pantalla del programa en funcionamiento
 ## Autores
 
 Proyecto desarrollado en el curso de Sistemas Operativos.
