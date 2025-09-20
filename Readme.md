@@ -23,27 +23,27 @@ Fue desarrollado en **Python** con soporte para interfaz gráfica usando **Custo
 ---
 
 ##  Estructura del proyecto
-
-
-  Proyecto-Simulador-de-procesos-algoritmicos/
-  │── algoritmos/ # Implementación de los algoritmos de planificación
-  │ ├── fcfs.AlgoritmoFIFO.py
-  │ ├── sjf.AlgoritmoSJF.py
-  │ ├── srtf.AlgoritmoSRTF.py
-  │ └── round_robin.py
-  │
-  │── interfaz_grafica/ # Interfaz gráfica (ventanas y paneles)
-  │ ├── panel_control.py
-  │ ├── panel_estado.py
-  │ └── ventana_principal.py
-  │
-  │── logica/ # Lógica de simulación y gestión de procesos
-  │ ├── gestor_memoria.py
-  │ ├── planificador.py
-  │ └── proceso.py
-  │
-  │── main.py # Punto de entrada principal
-  │── requirements.txt # Dependencias del proyecto
+1. Clonar el repositorio:
+   ```bash
+    Proyecto-Simulador-de-procesos-algoritmicos/
+    │── algoritmos/ # Implementación de los algoritmos de planificación
+    │ ├── fcfs.AlgoritmoFIFO.py
+    │ ├── sjf.AlgoritmoSJF.py
+    │ ├── srtf.AlgoritmoSRTF.py
+    │ └── round_robin.py
+    │
+    │── interfaz_grafica/ # Interfaz gráfica (ventanas y paneles)
+    │ ├── panel_control.py
+    │ ├── panel_estado.py
+    │ └── ventana_principal.py
+    │
+    │── logica/ # Lógica de simulación y gestión de procesos
+    │ ├── gestor_memoria.py
+    │ ├── planificador.py
+    │ └── proceso.py
+    │
+    │── main.py # Punto de entrada principal
+    │── requirements.txt # Dependencias del proyecto
 
 ---
 
