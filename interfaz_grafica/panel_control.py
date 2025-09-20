@@ -183,6 +183,8 @@ class PanelControl(ctk.CTkScrollableFrame):  # <— scrollable
             self.label_info.configure(text=f"No se pudo agregar el proceso: {e}")
 
     def crear_procesos_aleatorios(self):
+        import random
+
         def _to_int_or(val, default=1):
             try:
                 return int(val)
@@ -202,11 +204,21 @@ class PanelControl(ctk.CTkScrollableFrame):  # <— scrollable
             llegada = random.randint(0, lleg_max)
             quantum = random.randint(1, qmax) if actual_alg == "Round Robin" else None
 
-            p = Proceso(nombre=nombre, memoria_requerida=0, duracion=cpu, llegada=llegada, quantum=quantum)
+            # RAM aleatoria (en MB). Ajusta el rango si quieres.
+            ram = random.choice([4, 8, 16, 32, 64, 128, 256])
+
+            p = Proceso(
+                nombre=nombre,
+                memoria_requerida=ram,
+                duracion=cpu,
+                llegada=llegada,
+                quantum=quantum
+            )
             self.planificador.agregar_proceso(p)
 
         self.panel_estado.actualizar_estado()
-        self.label_info.configure(text=f"➕ Se agregaron {n} procesos aleatorios (algoritmo: {actual_alg}).")
+        self.label_info.configure(text=f"➕ Se agregaron {n} procesos aleatorios (RAM aleatoria).")
+
 
     # ---------- Simulación ----------
     
