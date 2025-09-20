@@ -19,6 +19,7 @@ Fue desarrollado en **Python** con soporte para interfaz gráfica usando **Custo
   - **Round Robin** (con quantum configurable).
 - Gestión de memoria con asignación y liberación dinámica.
 
+
 ---
 
 ##  Estructura del proyecto
