@@ -1,234 +1,153 @@
-from typing import List, Optional, Any
+# logica/planificador.py
+from typing import List, Optional, Any, Union
+from algoritmos.AlgoritmoFIFO import AlgoritmoFIFO
+from algoritmos.round_robin import AlgoritmoRoundRobin
+from algoritmos.algoritmo_sjf import AlgoritmoSJF
+from algoritmos.algoritmo_srtf import AlgoritmoSRTF
 
 class Planificador:
     def __init__(self, gestor_memoria):
         self.gestor_memoria = gestor_memoria
-
-        # Lista estable para la UI (no reordenar)
-        self._procesos: List[Any] = []
-
-        # Simulación
+        self._procesos: List[Any] = []    # orden visual
+        self.historial: List[dict] = []   # lista de eventos/ticks
         self.ejecutando: bool = False
         self.tiempo_actual: int = 0
-        self.historial: List[Any] = []
+
         self.pid_en_ejecucion: Optional[int] = None
-        self.historial_ticks: list[str] = []
+        self._algoritmo_nombre: str = 'FCFS'
+        self._algoritmo = AlgoritmoFIFO()
+        self._rr_quantum_default = 2
 
-        # Algoritmo
-        self.algoritmo_seleccionado: Optional[str] = None
-        self._alg_inst = None
-
-    @property
-    def pid_en_cpu(self) -> Optional[int]:
-        """Alias para UI."""
-        return self.pid_en_ejecucion
-
-    # ---------------- Configuración ----------------
-    def set_algoritmo(self, nombre: str):
-        """Selecciona el algoritmo: FCFS, SJF, SRTF o Round Robin."""
-        self.algoritmo_seleccionado = nombre
-        self._alg_inst = None  # forzar recarga al aplicar
-
-    def _ensure_alg_instance(self):
-        """Carga (una vez) el módulo del algoritmo y devuelve la instancia."""
-        if self._alg_inst is not None:
-            return self._alg_inst
-        if not self.algoritmo_seleccionado:
-            return None
-
-        # NOTA: SRTF apunta al módulo real del archivo .py
-        mapping = {
-            'FCFS': ('algoritmos.fcfs', 'AlgoritmoFIFO'),
-            'SJF': ('algoritmos.sjf', 'AlgoritmoSJF'),
-            'SRTF': ('algoritmos.srtf.AlgoritmoSRTF', 'AlgoritmoSRTF'),
-            'Round Robin': ('algoritmos.round_robin', 'AlgoritmoRoundRobin'),
-        }
-        if self.algoritmo_seleccionado not in mapping:
-            return None
-
-        mod_name, class_name = mapping[self.algoritmo_seleccionado]
-        try:
-            mod = __import__(mod_name, fromlist=[class_name])
-            AlgClass = getattr(mod, class_name, None)
-            if AlgClass is None:
-                return None
-            self._alg_inst = AlgClass()
-            return self._alg_inst
-        except Exception:
-            return None
-
-    # ---------------- Gestión de procesos ----------------
-    def agregar_proceso(self, proceso):
+    # -------- Procesos --------
+    def agregar_proceso(self, proceso) -> bool:
+        # Intentar reservar RAM al llegar el proceso a memoria
+        if not self.gestor_memoria.reservar(proceso.pid, proceso.memoria_requerida):
+            # No hay memoria: queda "Nuevo" sin entrar a RAM
+            self._registrar_evento('NO_HAY_MEMORIA', proceso)
+            return False
+        proceso.estado = 'En espera'
         self._procesos.append(proceso)
+        self._registrar_evento('ALTA', proceso)
+        self._reconfigurar_algoritmo()
+        return True
 
-    def eliminar_proceso(self, pid):
+    def obtener_procesos(self) -> List[Any]:
+        return list(self._procesos)
+
+    def limpiar(self):
         for p in self._procesos:
-            if getattr(p, 'pid', None) == pid:
-                # liberar memoria si estaba asignada
-                if getattr(p, "_mem_asignada", False):
-                    try:
-                        self.gestor_memoria.liberar(p.pid)
-                    except Exception:
-                        pass
-                    p._mem_asignada = False
+            self.gestor_memoria.liberar(p.pid)
+        self._procesos.clear()
+        self.historial.clear()
+        self.pid_en_ejecucion = None
+        self.tiempo_actual = 0
+        self.ejecutando = False
 
-                p.forzar_finalizacion()
-                if p not in self.historial:
-                    self.historial.append(p)
-                break
+    # -------- Algoritmo --------
+    def set_algoritmo(self, nombre: str):
+        nombre = (nombre or '').upper()
+        if nombre in ('FCFS', 'FIFO'):
+            self._algoritmo_nombre = 'FCFS'
+            self._algoritmo = AlgoritmoFIFO()
+        elif nombre in ('SJF',):
+            self._algoritmo_nombre = 'SJF'
+            self._algoritmo = AlgoritmoSJF()
+        elif nombre in ('SRTF', 'SJF-P'):
+            self._algoritmo_nombre = 'SRTF'
+            self._algoritmo = AlgoritmoSRTF()
+        elif nombre in ('RR', 'ROUND ROBIN'):
+            self._algoritmo_nombre = 'RR'
+            self._algoritmo = AlgoritmoRoundRobin(default_quantum=self._rr_quantum_default)
+        else:
+            raise ValueError(f"Algoritmo desconocido: {nombre}")
+        self._reconfigurar_algoritmo()
 
-    # ---------------- Ciclo de simulación ----------------
+    def set_rr_quantum(self, q: int):
+        self._rr_quantum_default = max(1, int(q))
+        if self._algoritmo_nombre == 'RR' and hasattr(self._algoritmo, 'default_quantum'):
+            self._algoritmo.default_quantum = self._rr_quantum_default
+
+    def _reconfigurar_algoritmo(self):
+        try:
+            self._algoritmo.setup(self._procesos, self)
+        except Exception:
+            pass
+
+    # -------- Simulación --------
     def iniciar(self):
         self.ejecutando = True
+        self._registrar_evento('INICIO_SIM', None)
 
     def detener(self):
         self.ejecutando = False
-        if self.pid_en_ejecucion is not None:
-            proc = self._by_pid(self.pid_en_ejecucion)
-            if proc and not proc.esta_terminado():
-                proc.estado = 'En espera'
+        self._registrar_evento('PAUSA_SIM', None)
+
+    def reiniciar(self):
+        # No borra procesos, solo resetea tiempo y estado de CPU
+        self.tiempo_actual = 0
         self.pid_en_ejecucion = None
+        for p in self._procesos:
+            p.cpu_restante = p.cpu_total
+            p.estado = 'En espera'
+            p.t_inicio = None
+            p.t_fin = None
+        self.historial.clear()
+        self._reconfigurar_algoritmo()
 
-    def aplicar_algoritmo(self):
-        """Prepara el algoritmo (no reordena la lista visual)."""
-        alg = self._ensure_alg_instance()
-        if alg is None:
-            return
-        copia = list(self._procesos)
-        if hasattr(alg, 'setup'):
-            try:
-                alg.setup(copia, planificador=self)
-            except Exception:
-                pass
-        elif hasattr(alg, 'planificar'):
-            try:
-                alg.planificar(copia, planificador=self)
-            except Exception:
-                pass
+    def _registrar_evento(self, tipo: str, proceso: Optional[Any], extra: dict | None = None):
+        self.historial.append({
+            "t": self.tiempo_actual,
+            "tipo": tipo,
+            "pid": getattr(proceso, 'pid', None),
+            "nombre": getattr(proceso, 'nombre', None),
+            **(extra or {})
+        })
 
-    def simular_tick(self, delta: int = 1):
-        """
-        Avanza EXACTAMENTE 1 unidad de CPU del proceso elegido y
-        luego incrementa el reloj. Sin reordenar la lista visual.
-        """
+    def _clear_running(self):
+        self.pid_en_ejecucion = None
+        for p in self._procesos:
+            if not p.esta_terminado():
+                if p.estado != 'En espera':
+                    p.estado = 'En espera'
+
+    def simular_tick(self, delta:int=1):
         if not self.ejecutando:
             return
 
-        # Elegibles que ya llegaron en el tiempo actual
-        candidatos = [p for p in self._procesos
-                      if (getattr(p, 'instante_llegada', 0) <= self.tiempo_actual) and not p.esta_terminado()]
+        self.tiempo_actual += int(delta)
 
+        # Candidatos: ya llegaron y no han terminado
+        candidatos = [p for p in self._procesos if p.instante_llegada <= self.tiempo_actual and not p.esta_terminado()]
         if not candidatos:
             self._clear_running()
-            self.historial_ticks.append(f"[t={self.tiempo_actual}] (idle)")
-            self.tiempo_actual += 1
+            self._registrar_evento('IDLE', None)
             return
 
-        # Preguntar al algoritmo
-        elegido = None
-        alg = self._ensure_alg_instance()
-        if alg and hasattr(alg, 'seleccionar'):
-            try:
-                elegido = alg.seleccionar(list(candidatos), planificador=self)
-            except Exception:
-                elegido = None
+        # Decidir según algoritmo
+        elegido = self._algoritmo.seleccionar(candidatos, self)
+        if elegido is None:
+            self._clear_running()
+            self._registrar_evento('IDLE', None)
+            return
 
-        # Normalizar a Proceso
-        if elegido is not None and hasattr(elegido, 'pid'):
-            proc_elegido = elegido
+        proceso = None
+        if isinstance(elegido, int):
+            for p in candidatos:
+                if p.pid == elegido:
+                    proceso = p
+                    break
         else:
-            proc_elegido = self._by_pid(elegido) if elegido is not None else candidatos[0]
-        if proc_elegido is None:
-            proc_elegido = candidatos[0]
+            proceso = elegido
 
-        # Marcar y (si aplica) reservar memoria
-        self._marcar_en_ejecucion(proc_elegido)
+        if proceso is None:
+            self._clear_running()
+            self._registrar_evento('IDLE', None)
+            return
 
-        # Ejecutar 1 unidad de CPU
-        proc_elegido.avanzar(delta=1)
-
-        # Si terminó, a historial y liberar memoria
-        if proc_elegido.esta_terminado():
-            # liberar memoria si estaba asignada
-            if getattr(proc_elegido, "_mem_asignada", False):
-                try:
-                    self.gestor_memoria.liberar(proc_elegido.pid)
-                except Exception:
-                    pass
-                proc_elegido._mem_asignada = False
-
-            if proc_elegido not in self.historial:
-                self.historial.append(proc_elegido)
-            self.pid_en_ejecucion = None
-
-        # Log y reloj
-        pidtxt = getattr(proc_elegido, 'pid', '?')
-        self.historial_ticks.append(f"[t={self.tiempo_actual}] PID {pidtxt}")
-        self.tiempo_actual += 1
-
-    # ---------------- Utilidades para UI ----------------
-    def obtener_procesos(self):
-        return list(self._procesos)
-
-    def obtener_procesos_activos(self):
-        if self.pid_en_ejecucion is None:
-            return []
-        p = self._by_pid(self.pid_en_ejecucion)
-        return [p] if p else []
-
-    @property
-    def proceso_actual(self):
-        if self.pid_en_ejecucion is None:
-            return None
-        return self._by_pid(self.pid_en_ejecucion)
-
-    def mover_a_historial(self, proceso):
-        if proceso not in self.historial:
-            self.historial.append(proceso)
-
-        # liberar memoria si estaba asignada
-        if getattr(proceso, "_mem_asignada", False):
-            try:
-                self.gestor_memoria.liberar(proceso.pid)
-            except Exception:
-                pass
-            proceso._mem_asignada = False
-
-        proceso.forzar_finalizacion()
-        if self.pid_en_ejecucion == getattr(proceso, 'pid', None):
-            self.pid_en_ejecucion = None
-
-    # ---------------- Internos ----------------
-    def _by_pid(self, pid) -> Optional[Any]:
-        for p in self._procesos:
-            if getattr(p, 'pid', None) == pid:
-                return p
-        return None
-
-    def _clear_running(self):
-        for p in self._procesos:
-            if not p.esta_terminado():
-                p.estado = 'En espera'
-        self.pid_en_ejecucion = None
-
-    def _marcar_en_ejecucion(self, proceso):
-        self.pid_en_ejecucion = getattr(proceso, 'pid', None)
-
-        # ---- RESERVA DE MEMORIA al entrar a CPU (una sola vez) ----
-        if not getattr(proceso, "_mem_asignada", False):
-            mem_req = int(getattr(proceso, "memoria_requerida", 0) or 0)
-            if mem_req > 0:
-                try:
-                    ok = self.gestor_memoria.reservar(proceso.pid, mem_req)
-                    if ok:
-                        proceso._mem_asignada = True
-                    else:
-                        # si no hay memoria suficiente, simplemente no marcamos la bandera
-                        # (se puede añadir política para bloquear ejecución si quieres)
-                        proceso._mem_asignada = False
-                except Exception:
-                    proceso._mem_asignada = False
-
+        # Marcar en ejecución
+        self.pid_en_ejecucion = proceso.pid
+        if proceso.t_inicio is None:
+            proceso.t_inicio = self.tiempo_actual
         for p in self._procesos:
             if p is proceso:
                 if not p.esta_terminado():
@@ -236,3 +155,28 @@ class Planificador:
             else:
                 if not p.esta_terminado():
                     p.estado = 'En espera'
+
+        # Ejecutar 1 unidad
+        proceso.ejecutar(1)
+        self._registrar_evento('RUN', proceso, {"restante": proceso.cpu_restante, "alg": self._algoritmo_nombre})
+
+        # Al terminar
+        if proceso.esta_terminado():
+            proceso.t_fin = self.tiempo_actual
+            self.gestor_memoria.liberar(proceso.pid)
+            self._registrar_evento('FIN', proceso)
+            # Notificar al algoritmo si ofrece hook
+            if hasattr(self._algoritmo, "on_proceso_terminado"):
+                try:
+                    self._algoritmo.on_proceso_terminado(proceso.pid)
+                except Exception:
+                    pass
+
+    # Para auto-refresco UI: estado simple de CPU
+    def estado_cpu(self) -> dict:
+        running = None
+        for p in self._procesos:
+            if p.pid == self.pid_en_ejecucion and not p.esta_terminado():
+                running = {"pid": p.pid, "nombre": p.nombre}
+                break
+        return {"t": self.tiempo_actual, "running": running, "alg": self._algoritmo_nombre}
