@@ -23,13 +23,22 @@ class Proceso:
         self.t_inicio = None           # tick en que comenzó a ejecutar por 1a vez
         self.t_fin = None              # tick en que terminó
 
+        # --- Métricas de desempeño ---
+        self.t_espera = 0              # Tiempo total en cola
+        self.t_retorno = None          # Turnaround = t_fin - instante_llegada
+        self.t_respuesta = None        # Tiempo de respuesta = t_inicio - llegada
+        self.eficiencia = 0.0          # E = CPU_total / t_retorno
+        self.slices = []               # [(inicio, fin), (inicio, fin), ...]
+
     # --- API usada por Planificador ---
     def ejecutar(self, unidades=1):
         if self.estado == 'Finalizado':
             return 0
+        
         n = max(1, int(unidades))
         ejecutado = min(n, self.cpu_restante)
         self.cpu_restante -= ejecutado
+
         if self.cpu_restante <= 0:
             self.cpu_restante = 0
             self.estado = 'Finalizado'
@@ -41,6 +50,16 @@ class Proceso:
 
     def esta_terminado(self) -> bool:
         return self.cpu_restante <= 0
+
+    def calcular_metricas(self):
+        """Calcula métricas finales del proceso al terminar."""
+        if self.t_fin is not None:
+            self.t_retorno = self.t_fin - self.instante_llegada
+            self.t_espera = self.t_retorno - self.cpu_total
+            if self.t_inicio is not None:
+                self.t_respuesta = self.t_inicio - self.instante_llegada
+            # Eficiencia = tiempo de uso CPU / tiempo total
+            self.eficiencia = round(self.cpu_total / self.t_retorno, 3) if self.t_retorno else 0.0
 
     def __str__(self):
         qtxt = self.quantum if self.quantum is not None else "-"
