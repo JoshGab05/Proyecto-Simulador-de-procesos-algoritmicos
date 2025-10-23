@@ -18,7 +18,7 @@ class PanelControl(ctk.CTkScrollableFrame):
         gestor_memoria,
         planificador,
         panel_estado,
-        ejecutar_algoritmo_callback=None,   # callback genérico (RR visual)
+        ejecutar_algoritmo_callback=None,   # callback visual (RR/FCFS y futuros)
         mostrar_tabla_callback=None,        # para abrir la tabla de eficiencia
     ):
         super().__init__(master, width=350, height=620)
@@ -48,7 +48,6 @@ class PanelControl(ctk.CTkScrollableFrame):
         qrow = ctk.CTkFrame(self)
         qrow.pack(fill="x", padx=10, pady=(0, 6))
         ctk.CTkLabel(qrow, text="Quantum (RR):").pack(side="left", padx=(0, 6))
-        # StringVar para evitar errores cuando el campo queda vacío
         self.quantum_var = tk.StringVar(value="2")
         ctk.CTkEntry(qrow, width=60, textvariable=self.quantum_var).pack(side="left")
         ctk.CTkButton(qrow, text="Aplicar", command=self._apply_quantum).pack(side="left", padx=6)
@@ -63,7 +62,6 @@ class PanelControl(ctk.CTkScrollableFrame):
         ctk.CTkLabel(form, text="Quantum:").grid(row=4, column=0, sticky="e", padx=4, pady=4)
 
         self.nombre_var = tk.StringVar(value="")
-        # StringVar en todos los numéricos → parseo seguro después
         self.ram_var = tk.StringVar(value="128")
         self.cpu_var = tk.StringVar(value="5")
         self.llegada_var = tk.StringVar(value="0")
@@ -86,7 +84,7 @@ class PanelControl(ctk.CTkScrollableFrame):
         ctk.CTkButton(btns, text="⟳ Reiniciar", command=self._reiniciar).pack(side="left", padx=4)
         ctk.CTkButton(btns, text="🗑 Limpiar", command=self._limpiar).pack(side="left", padx=4)
 
-        # ---------- Tabla de eficiencia (para RR) ----------
+        # ---------- Tabla de eficiencia ----------
         ctk.CTkButton(self, text="📊 Ver Tabla de Eficiencia", command=self._show_table)\
             .pack(fill="x", padx=10, pady=(2, 8))
 
@@ -104,7 +102,6 @@ class PanelControl(ctk.CTkScrollableFrame):
     # HANDLERS
     # ------------------------------------------------------------------
     def _on_alg_change(self, value):
-        """Cuando cambia el algoritmo seleccionado."""
         try:
             self.planificador.set_algoritmo(self.alg_var.get())
             self.label_info.configure(text=f"Algoritmo seleccionado: {self.alg_var.get()}")
@@ -112,7 +109,6 @@ class PanelControl(ctk.CTkScrollableFrame):
             self.label_info.configure(text=f"Error al cambiar algoritmo: {e}")
 
     def _apply_quantum(self):
-        """Aplica un nuevo quantum al algoritmo RR."""
         q = _to_int(self.quantum_var.get(), default=2)
         try:
             self.planificador.set_rr_quantum(q)
@@ -121,7 +117,6 @@ class PanelControl(ctk.CTkScrollableFrame):
             self.label_info.configure(text=f"Error al aplicar quantum: {e}")
 
     def _agregar_proceso(self):
-        """Crea y agrega un nuevo proceso."""
         nombre = (self.nombre_var.get() or "").strip() or None
         try:
             p = Proceso(
@@ -152,27 +147,31 @@ class PanelControl(ctk.CTkScrollableFrame):
     def _iniciar(self):
         """
         Inicia la simulación:
-        - RR: usa el callback visual (no afecta otros algoritmos).
-        - FCFS/SJF/SRTF: usa el planificador normal con auto-refresco.
+        - RR y FCFS: intentan usar el callback visual si está presente.
+        - SJF/SRTF (u otros): usan el planificador normal con auto-refresco.
         """
         alg = (self.alg_var.get() or "").upper()
-        if alg == "RR":
-            if self.ejecutar_algoritmo_callback:
-                q = _to_int(self.quantum_var.get(), 2)
+
+        # Visuales (si hay callback): RR y FCFS
+        if alg in ("RR", "FCFS") and self.ejecutar_algoritmo_callback:
+            q = _to_int(self.quantum_var.get(), 2)
+            if alg == "RR":
                 self.label_info.configure(text=f"Iniciando simulación (RR, Q={q})...")
-                # Notificamos al callback el algoritmo también (útil si luego agregan otros)
                 self.ejecutar_algoritmo_callback(algorithm="RR", quantum=q)
             else:
-                self.label_info.configure(text="No hay callback configurado para ejecutar RR visual.")
-        else:
-            try:
-                self.planificador.set_algoritmo(alg)
-                self.planificador.iniciar()
-                if self.panel_estado:
-                    self.panel_estado.programar_refrescos()
-                self.label_info.configure(text=f"Iniciando simulación ({alg})...")
-            except Exception as e:
-                self.label_info.configure(text=f"Error al iniciar: {e}")
+                self.label_info.configure(text="Iniciando simulación (FCFS visual)...")
+                self.ejecutar_algoritmo_callback(algorithm="FCFS", quantum=q)  # quantum se ignora en FCFS
+            return
+
+        # No visual (clásico)
+        try:
+            self.planificador.set_algoritmo(alg)
+            self.planificador.iniciar()
+            if self.panel_estado:
+                self.panel_estado.programar_refrescos()
+            self.label_info.configure(text=f"Iniciando simulación ({alg})...")
+        except Exception as e:
+            self.label_info.configure(text=f"Error al iniciar: {e}")
 
     def _pausar(self):
         self.planificador.detener()
@@ -196,7 +195,6 @@ class PanelControl(ctk.CTkScrollableFrame):
     # TABLA DE EFICIENCIA
     # ------------------------------------------------------------------
     def _show_table(self):
-        """Muestra la tabla de eficiencia (si existe)."""
         if self.mostrar_tabla_callback:
             self.mostrar_tabla_callback()
         else:

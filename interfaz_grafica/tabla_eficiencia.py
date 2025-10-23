@@ -13,7 +13,7 @@ class TablaEficiencia(ctk.CTkToplevel):
     def __init__(self, master, resultados):
         super().__init__(master)
         self.title("Tabla de Eficiencia")
-        self.geometry("950x480")
+        self.geometry("800x450")
         self.resizable(True, True)
 
         # Normalizar estructura de resultados
