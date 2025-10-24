@@ -1,44 +1,40 @@
 # interfaz_grafica/grafico_gantt.py
+# Módulo simplificado: mantenido por compatibilidad si lo usas en otro lado
 import matplotlib
-matplotlib.use("Agg")  # Evita conflictos al generar figuras fuera del hilo principal
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-def generar_grafico_gantt(segmentos, nombre="Round Robin", show=False):
+def generar_grafico_gantt(segmentos, nombre="Algoritmo", show=False):
     """
-    Genera un gráfico Gantt seguro para usar dentro de Tkinter.
-    Cada segmento: {"t": inicio, "nombre": proceso, "duracion": ancho}
-    - show=False evita plt.show() en hilos secundarios.
-    - Devuelve (fig, ax) para embebido.
+    (Compat) Genera un gráfico de Gantt simple desde una lista de
+    segmentos: [{"t": inicio, "nombre": proceso, "duracion": ancho}, ...]
+    Devuelve (fig, ax). En el panel_ejecucion ya no se usa crear/ destruir,
+    se llama a un canvas persistente; este helper queda por si lo necesitas.
     """
+    fig, ax = plt.subplots(figsize=(6.5, 3.2), dpi=100)
     if not segmentos:
-        fig, ax = plt.subplots(figsize=(8, 3))
-        ax.set_title(f"Diagrama Gantt - {nombre}")
+        ax.set_title(f"Tabla de Procesos - {nombre}")
         ax.set_xlabel("Tiempo (ticks)")
-        ax.set_ylabel("Procesos")
+        ax.set_ylabel("Proceso")
         ax.grid(axis="x", linestyle="--", alpha=0.6)
         return fig, ax
 
-    procesos = sorted(list({s["nombre"] for s in segmentos}))
-    cmap = plt.cm.get_cmap("tab10", len(procesos))
-    colores = {p: cmap(i) for i, p in enumerate(procesos)}
+    procesos = []
+    for s in segmentos:
+        if s["nombre"] not in procesos:
+            procesos.append(s["nombre"])
+    ymap = {p: i for i, p in enumerate(procesos)}
 
-    fig, ax = plt.subplots(figsize=(10, 3 + len(procesos) * 0.3))
     for seg in segmentos:
-        ax.barh(
-            seg["nombre"], seg["duracion"], left=seg["t"],
-            color=colores[seg["nombre"]], edgecolor="black"
-        )
-        ax.text(
-            seg["t"] + seg["duracion"] / 2,
-            seg["nombre"],
-            seg["nombre"],
-            ha="center", va="center", color="white", fontsize=8
-        )
+        y = ymap[seg["nombre"]]
+        ax.barh(y, seg["duracion"], left=seg["t"], height=0.6, edgecolor="black", alpha=0.85)
+        ax.text(seg["t"] + seg["duracion"] / 2, y, seg["nombre"], ha="center", va="center", fontsize=9, color="white")
 
-    ax.set_xlabel("Tiempo (ticks)")
-    ax.set_ylabel("Procesos")
-    ax.set_title(f"Diagrama Gantt - {nombre}")
+    ax.set_yticks(list(ymap.values()), list(ymap.keys()))
     ax.set_xlim(0, max(s["t"] + s["duracion"] for s in segmentos) + 1)
+    ax.set_xlabel("Tiempo (ticks)")
+    ax.set_ylabel("Proceso")
+    ax.set_title(f"Tabla de Procesos - {nombre}")
     ax.grid(axis="x", linestyle="--", alpha=0.6)
 
     if show:
@@ -46,6 +42,4 @@ def generar_grafico_gantt(segmentos, nombre="Round Robin", show=False):
             plt.show()
         except Exception:
             pass
-
     return fig, ax
-

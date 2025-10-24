@@ -19,22 +19,57 @@ class Proceso:
         self.quantum = None if quantum in (None, "", "-") else int(quantum)
 
         # Estados / métricas
-        self.estado = 'Nuevo'          # Nuevo, En espera, En ejecución, Finalizado
-        self.t_inicio = None           # tick en que comenzó a ejecutar por 1a vez
-        self.t_fin = None              # tick en que terminó
+        # <-- IMPORTANTE: muchos paneles esperan "En espera" al crearlo
+        self.estado = 'En espera'        # Nuevo, En espera, En ejecución, Finalizado
+        self.t_inicio = None             # tick en que comenzó a ejecutar por 1a vez
+        self.t_fin = None                # tick en que terminó
 
         # --- Métricas de desempeño ---
-        self.t_espera = 0              # Tiempo total en cola
-        self.t_retorno = None          # Turnaround = t_fin - instante_llegada
-        self.t_respuesta = None        # Tiempo de respuesta = t_inicio - llegada
-        self.eficiencia = 0.0          # E = CPU_total / t_retorno
-        self.slices = []               # [(inicio, fin), (inicio, fin), ...]
+        self.t_espera = 0
+        self.t_retorno = None
+        self.t_respuesta = None
+        self.eficiencia = 0.0
+        self.slices = []                 # [(inicio, fin), ...]
+
+    # ----------------------------
+    # ALIAS DE COMPATIBILIDAD UI
+    # ----------------------------
+    @property
+    def llegada(self) -> int:
+        """Alias para self.instante_llegada (lo que lee la tabla/UI)."""
+        return self.instante_llegada
+
+    @llegada.setter
+    def llegada(self, v: int) -> None:
+        self.instante_llegada = int(v)
+
+    @property
+    def cpu(self) -> int:
+        """Alias para self.cpu_total (algunas vistas lo nombran 'CPU')."""
+        return self.cpu_total
+
+    @cpu.setter
+    def cpu(self, v: int) -> None:
+        v = int(v)
+        # Si cambias el total, ajusta restante si aún no ejecutó
+        delta = v - self.cpu_total
+        self.cpu_total = v
+        if self.t_inicio is None:
+            self.cpu_restante = v
+        else:
+            # si ya está ejecutando, mantenemos la consistencia aproximada
+            self.cpu_restante = max(0, self.cpu_restante + delta)
+
+    @property
+    def restante(self) -> int:
+        """Alias de solo lectura a cpu_restante."""
+        return self.cpu_restante
 
     # --- API usada por Planificador ---
     def ejecutar(self, unidades=1):
         if self.estado == 'Finalizado':
             return 0
-        
+
         n = max(1, int(unidades))
         ejecutado = min(n, self.cpu_restante)
         self.cpu_restante -= ejecutado
@@ -58,7 +93,6 @@ class Proceso:
             self.t_espera = self.t_retorno - self.cpu_total
             if self.t_inicio is not None:
                 self.t_respuesta = self.t_inicio - self.instante_llegada
-            # Eficiencia = tiempo de uso CPU / tiempo total
             self.eficiencia = round(self.cpu_total / self.t_retorno, 3) if self.t_retorno else 0.0
 
     def __str__(self):

@@ -1,183 +1,157 @@
 # interfaz_grafica/panel_ejecucion.py
+from __future__ import annotations
 import customtkinter as ctk
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from interfaz_grafica.grafico_gantt import generar_grafico_gantt
-
-
-def _get_attr(obj, key, default=None):
-    """Obtiene un atributo o clave de un objeto o diccionario."""
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-    return getattr(obj, key, default)
 
 
 class PanelEjecucion(ctk.CTkFrame):
     """
-    Panel dinámico que muestra:
-      - Barras de progreso por proceso.
-      - Gráfico Gantt actualizado en tiempo real.
-      - Estado de CPU y contador de tiempo.
+    Panel de ejecución con un Gantt sencillo.
+    Firma flexible:
+      - (master, planificador)  o  (master, gestor, planificador)
+    API esperada por VentanaPrincipal:
+      - set_titulo(texto)
+      - set_procesos_base(lista_de_procesos)
+      - pintar_tick(nombre_o_pid, t, simbolo="X")
+      - marcar(...), pintar(...)  (alias)
+      - limpiar()
     """
-
-    def __init__(self, master):
+    def __init__(self, master, *args):
         super().__init__(master)
-        self.progresos = {}
-        self.segmentos = []
-        self.canvas = None
-        self.fig = None
-        self.ax = None
-        self.tiempo_total = 0
-        self.colores = {}
-        self.algoritmo_actual = "RR"
+        self.gestor = None
+        self.planificador = None
 
-        # ==========================================================
-        # TÍTULO
-        # ==========================================================
-        ctk.CTkLabel(
-            self,
-            text="Ejecución de Procesos",
-            font=("Arial", 20, "bold")
-        ).pack(pady=(8, 0))
-
-        # ==========================================================
-        # BLOQUE DE ESTADO GENERAL (debajo del título)
-        # ==========================================================
-        estado_frame = ctk.CTkFrame(self, fg_color="transparent")
-        estado_frame.pack(fill="x", pady=(4, 10))
-
-        self.lbl_tiempo = ctk.CTkLabel(
-            estado_frame,
-            text="Tiempo: 0 ticks",
-            font=("Arial", 14)
-        )
-        self.lbl_tiempo.pack(anchor="center", pady=(2, 2))
-
-        self.lbl_estado_cpu = ctk.CTkLabel(
-            estado_frame,
-            text="CPU: IDLE | Alg: RR",
-            font=("Consolas", 13)
-        )
-        self.lbl_estado_cpu.pack(anchor="center")
-
-        # ==========================================================
-        # BARRAS DE PROGRESO
-        # ==========================================================
-        self.frame_barras = ctk.CTkScrollableFrame(self, width=460, height=250)
-        self.frame_barras.pack(fill="x", padx=8, pady=(0, 10))
-
-        # ==========================================================
-        # GRÁFICO GANTT (dinámico según algoritmo)
-        # ==========================================================
-        self.frame_grafico = ctk.CTkFrame(self, height=250)
-        self.frame_grafico.pack(fill="both", expand=False, padx=8, pady=(0, 10))
-
-        self.lbl_titulo_gantt = ctk.CTkLabel(
-            self.frame_grafico,
-            text="Diagrama Gantt",
-            font=("Arial", 16, "italic")
-        )
-        self.lbl_titulo_gantt.pack(pady=(5, 0))
-
-        # Mantener tamaño estable
-        self.update_idletasks()
-        self.pack_propagate(False)
-
-    # ---------------------------------------------------------
-    # MÉTODOS PRINCIPALES
-    # ---------------------------------------------------------
-    def inicializar_procesos(self, procesos, algoritmo_nombre="RR"):
-        """Crea las barras iniciales para los procesos agregados."""
-        self.algoritmo_actual = algoritmo_nombre
-        for widget in self.frame_barras.winfo_children():
-            widget.destroy()
-
-        self.progresos.clear()
-        self.segmentos.clear()
-        self.colores.clear()
-
-        # Paleta de colores predefinida
-        base_colors = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"]
-
-        for i, p in enumerate(procesos):
-            nombre = _get_attr(p, "nombre", f"P{i+1}")
-            total = _get_attr(p, "cpu_total", _get_attr(p, "duracion", 1))
-            color = base_colors[i % len(base_colors)]
-
-            frame = ctk.CTkFrame(self.frame_barras)
-            frame.pack(fill="x", padx=4, pady=3)
-
-            ctk.CTkLabel(frame, text=f"{nombre}", width=100).pack(side="left", padx=4)
-            bar = ctk.CTkProgressBar(frame, progress_color=color)
-            bar.pack(side="left", fill="x", expand=True, padx=6)
-            bar.set(0)
-
-            self.progresos[nombre] = {"bar": bar, "total": total, "ejecutado": 0}
-            self.colores[nombre] = color
-
-        self.lbl_tiempo.configure(text="Tiempo: 0 ticks")
-        self.lbl_estado_cpu.configure(text=f"CPU: IDLE | Alg: {algoritmo_nombre}")
-        self.lbl_titulo_gantt.configure(text=f"Diagrama Gantt - {algoritmo_nombre}")
-
-    def actualizar_tick(self, t, proceso_actual, cola_ready):
-        """Se llama cada tick para actualizar progreso y gráfico."""
-        self.tiempo_total = t
-        self.lbl_tiempo.configure(text=f"Tiempo: {t} ticks")
-
-        # Mostrar estado del sistema
-        if proceso_actual:
-            self.lbl_estado_cpu.configure(
-                text=f"CPU: {proceso_actual.nombre} (PID {proceso_actual.pid}) | Alg: {self.algoritmo_actual}"
-            )
+        if len(args) >= 2:
+            self.gestor, self.planificador = args[0], args[1]
+        elif len(args) == 1:
+            self.planificador = args[0]
         else:
-            self.lbl_estado_cpu.configure(text=f"CPU: IDLE | Alg: {self.algoritmo_actual}")
+            raise TypeError("PanelEjecucion requiere al menos 'planificador'")
 
-        # Actualizar título del gráfico según algoritmo actual
-        self.lbl_titulo_gantt.configure(text=f"Diagrama Gantt - {self.algoritmo_actual}")
+        self._titulo = "Tabla de Ejecucion de procesos"
+        self._max_t = 30  # columnas (0..19)
+        self._row_names = []  # nombres de procesos
+        self._row_index = {}  # nombre -> índice de fila
 
-        if not proceso_actual:
-            return
+        # Encabezado
+        self.frame_head = ctk.CTkFrame(self)
+        self.frame_head.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 4))
+        self.lbl_titulo = ctk.CTkLabel(self.frame_head, text=self._titulo + " - FCFS",
+                                       font=ctk.CTkFont(size=16, weight="bold"))
+        self.lbl_titulo.pack(side="left", padx=8)
 
-        nombre = _get_attr(proceso_actual, "nombre", "P?")
-        self.segmentos.append({"t": t, "nombre": nombre, "duracion": 1})
+       # self.lbl_info = ctk.CTkLabel(self.frame_head, text="Tiempo: 0 ticks     CPU: IDLE | Alg: -")
+       # self.lbl_info.pack(side="right", padx=8)
 
-        # Actualizar progreso de barra
-        if nombre in self.progresos:
-            p = self.progresos[nombre]
-            p["ejecutado"] = min(p["ejecutado"] + 1, p["total"])
-            progreso = p["ejecutado"] / p["total"]
-            p["bar"].set(progreso)
+        # Canvas
+        self.canvas = ctk.CTkCanvas(self, width=780, height=360, bg="#111111", highlightthickness=0)
+        self.canvas.grid(row=1, column=0, sticky="nsew", padx=8, pady=8)
 
-        self.actualizar_grafico()
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-    def actualizar_grafico(self):
-        """Redibuja el gráfico Gantt."""
-        if not self.segmentos:
-            return
+        self._cell_w = 28
+        self._cell_h = 22
+        self._top_pad = 26
+        self._left_pad = 60
 
-        fig, ax = generar_grafico_gantt(self.segmentos, show=False)
-        self.fig, self.ax = fig, ax
+        self._dibujar_grid()
 
-        for widget in self.frame_grafico.winfo_children():
-            if not isinstance(widget, ctk.CTkLabel):
-                widget.destroy()
+    # ---------- API ----------
 
-        canvas = FigureCanvasTkAgg(fig, master=self.frame_grafico)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill="both", expand=True, pady=5)
-        self.canvas = canvas
+    def set_titulo(self, texto: str):
+        self._titulo = texto or self._titulo
+        self.lbl_titulo.configure(text=f"Tabla de Procesos - {self._titulo}")
+
+    def set_procesos_base(self, procesos):
+        # Establece nombres de filas según lista de procesos
+        names = []
+        for p in procesos or []:
+            nombre = getattr(p, "nombre", None)
+            pid = getattr(p, "pid", getattr(p, "id", None))
+            names.append(str(nombre or pid or "?"))
+        if not names:
+            names = ["A", "B", "C"]
+        self._row_names = names
+        self._row_index = {n: i for i, n in enumerate(self._row_names)}
+        self._dibujar_grid()
 
     def limpiar(self):
-        """Limpia el panel para nueva simulación."""
-        self.segmentos.clear()
-        self.tiempo_total = 0
-        self.lbl_tiempo.configure(text="Tiempo: 0 ticks")
-        self.lbl_estado_cpu.configure(text=f"CPU: IDLE | Alg: {self.algoritmo_actual}")
-        self.lbl_titulo_gantt.configure(text=f"Diagrama Gantt - {self.algoritmo_actual}")
+        self.canvas.delete("all")
+        self._dibujar_grid()
 
-        for p in self.progresos.values():
-            p["bar"].set(0)
-            p["ejecutado"] = 0
+    def pintar_tick(self, nombre_o_pid, t, simbolo="X"):
+        """Pinta un símbolo en la celda (fila segun nombre, columna t)."""
+        if t is None:
+            return
+        col = int(t)  # 0..N
+        if col < 0 or col >= self._max_t:
+            # Auto-expandir un poco si nos pasamos
+            self._max_t = max(self._max_t, col + 5)
+            self._dibujar_grid()
 
-        for widget in self.frame_grafico.winfo_children():
-            if not isinstance(widget, ctk.CTkLabel):
-                widget.destroy()
+        name = str(nombre_o_pid)
+        # si no existe la fila, la agregamos al final
+        if name not in self._row_index:
+            self._row_index[name] = len(self._row_names)
+            self._row_names.append(name)
+            self._dibujar_grid()
+
+        row = self._row_index[name]
+        x0 = self._left_pad + col * self._cell_w + 4
+        y0 = self._top_pad + row * self._cell_h + 4
+        x1 = x0 + self._cell_w - 8
+        y1 = y0 + self._cell_h - 8
+
+        if simbolo.upper() == "O":
+            self.canvas.create_oval(x0, y0, x1, y1, outline="#ffaa00")
+        else:
+            # 'X' por defecto
+            self.canvas.create_line(x0, y0, x1, y1, fill="#ffffff")
+            self.canvas.create_line(x0, y1, x1, y0, fill="#ffffff")
+
+    # alias compatibles
+    def marcar(self, nombre_o_pid, t, simbolo="X"):
+        self.pintar_tick(nombre_o_pid, t, simbolo)
+
+    def pintar(self, nombre_o_pid, t, simbolo="X"):
+        self.pintar_tick(nombre_o_pid, t, simbolo)
+
+    def pintar_fin(self, nombre: str, t: int):
+        """Marca fin de un proceso en el tick 't' (no en t+1).Debe usar el mismo mecanismo de coordenadas que 'pintar_tick'."""
+        try:
+            # Si usas una tabla: self._set_cell(nombre, t, "○")
+            # Si usas canvas, reemplaza por create_text en la celda (nombre, t):
+            self._pintar_simbolo(nombre, t, "○")  # reutiliza tu helper interno si lo tienes
+        except Exception:
+            pass
+
+
+    # ---------- helpers de dibujo ----------
+
+    def _dibujar_grid(self):
+        self.canvas.delete("all")
+
+        # Ejes de tiempo (encabezado)
+        for c in range(self._max_t):
+            x = self._left_pad + c * self._cell_w + self._cell_w / 2
+            self.canvas.create_text(x, 12, text=str(c), fill="#cccccc", font=("Arial", 10))
+
+        # Líneas verticales y horizontales
+        # filas (procesos)
+        n_rows = max(1, len(self._row_names))
+        for r in range(n_rows + 1):
+            y = self._top_pad + r * self._cell_h
+            self.canvas.create_line(self._left_pad, y,
+                                    self._left_pad + self._max_t * self._cell_w, y,
+                                    fill="#2a2a2a")
+
+        for c in range(self._max_t + 1):
+            x = self._left_pad + c * self._cell_w
+            self.canvas.create_line(x, self._top_pad,
+                                    x, self._top_pad + n_rows * self._cell_h,
+                                    fill="#2a2a2a")
+
+        # Nombres de las filas
+        for i, name in enumerate(self._row_names or ["A", "B", "C"]):
+            y = self._top_pad + i * self._cell_h + self._cell_h / 2
+            self.canvas.create_text(self._left_pad - 20, y, text=name, fill="#dddddd", anchor="e")
