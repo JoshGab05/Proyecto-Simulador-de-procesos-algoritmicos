@@ -170,7 +170,7 @@ Este simulador replica el comportamiento de un sistema operativo gestionando mú
 <img width="698" height="391" alt="image" src="https://github.com/user-attachments/assets/e897a37c-bf02-4105-b56b-5fc5b5364479" />
 
 
-##Características
+## Características
   -No expropiativo: Sólo decide al terminar un proceso.
   -Minimiza el tiempo de espera promedio.
   -Requiere conocer la duración de antemano.
