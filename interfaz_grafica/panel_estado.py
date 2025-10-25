@@ -1,154 +1,129 @@
+# interfaz_grafica/panel_estado.py
+from __future__ import annotations
 import customtkinter as ctk
-from tkinter import ttk
+from typing import List, Dict, Any, Optional
 
+MONO = ("Consolas", 12)
 
 class PanelEstado(ctk.CTkFrame):
-    """
-    Panel que muestra:
-      - Procesos en memoria (estado, llegada, CPU)
-      - Orden de finalización (lista numerada)
-      - Estado general de CPU
-    """
-
     def __init__(self, master, planificador):
         super().__init__(master)
         self.planificador = planificador
-        self._after_id = None
-        self._resultados_finales = None  # 🔹 nuevo: para vincular resultados_rr
 
-        # =============================
-        # TÍTULO PRINCIPAL
-        # =============================
-        ctk.CTkLabel(
-            self,
-            text="Estado del Sistema",
-            font=("Arial", 22, "bold")
-        ).pack(pady=(10, 6))
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-        # =============================
-        # SECCIÓN: TABLA DE PROCESOS
-        # =============================
-        frame_tabla = ctk.CTkFrame(self)
-        frame_tabla.pack(fill="x", padx=10, pady=(0, 8))
+        # --- Caja: Procesos en Memoria ---
+        frame_mem = ctk.CTkFrame(self)
+        frame_mem.grid(row=0, column=0, sticky="nsew", padx=8, pady=(8, 4))
 
-        ctk.CTkLabel(
-            frame_tabla,
-            text="Procesos en Memoria",
-            font=("Arial", 14, "bold")
-        ).pack(anchor="w", padx=6, pady=(6, 2))
+        lbl1 = ctk.CTkLabel(frame_mem, text="Procesos en Memoria", font=("Segoe UI", 18, "bold"))
+        lbl1.pack(anchor="w", padx=10, pady=(8, 4))
 
-        self.tree = ttk.Treeview(
-            frame_tabla,
-            columns=("pid", "nombre", "estado", "llegada", "cpu"),
-            show="headings",
-            height=6
-        )
+        self.txt_mem = ctk.CTkTextbox(frame_mem, height=180, font=MONO)
+        self.txt_mem.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.txt_mem.configure(state="disabled")
 
-        for col, w in (
-            ("pid", 40),
-            ("nombre", 100),
-            ("estado", 100),
-            ("llegada", 80),
-            ("cpu", 80)
-        ):
-            self.tree.heading(col, text=col.upper())
-            self.tree.column(col, width=w, stretch=False)
-        self.tree.pack(fill="x", padx=6, pady=(0, 6))
+        # --- Caja: Orden de Finalización ---
+        frame_fin = ctk.CTkFrame(self)
+        frame_fin.grid(row=1, column=0, sticky="nsew", padx=8, pady=(4, 8))
 
-        # =============================
-        # SECCIÓN: ORDEN DE FINALIZACIÓN
-        # =============================
-        frame_orden = ctk.CTkFrame(self)
-        frame_orden.pack(fill="x", padx=10, pady=(6, 8))
+        lbl2 = ctk.CTkLabel(frame_fin, text="Orden de Finalización de Procesos", font=("Segoe UI", 18, "bold"))
+        lbl2.pack(anchor="w", padx=10, pady=(8, 4))
 
-        ctk.CTkLabel(
-            frame_orden,
-            text="Orden de Finalización de Procesos",
-            font=("Arial", 14, "bold")
-        ).pack(anchor="w", padx=6, pady=(4, 2))
+        self.txt_final = ctk.CTkTextbox(frame_fin, height=220, font=MONO)
+        self.txt_final.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.txt_final.configure(state="normal")
+        self.txt_final.delete("1.0", "end")
+        self.txt_final.insert("end", "Aún no hay procesos finalizados...\n")
+        self.txt_final.configure(state="disabled")
 
-        self.txt_orden = ctk.CTkTextbox(frame_orden, height=140, width=300, font=("Consolas", 13))
-        self.txt_orden.pack(fill="x", padx=6, pady=(2, 6))
-        self.txt_orden.insert("1.0", "Aún no hay procesos finalizados...\n")
-        self.txt_orden.configure(state="disabled")
+        # pie de estado pequeño (opcional)
+        self.lbl_peq = ctk.CTkLabel(self, text="t=0 | CPU: - | Alg: -", font=("Segoe UI", 12))
+        self.lbl_peq.grid(row=2, column=0, sticky="w", padx=12, pady=(0, 6))
 
-        # =============================
-        # LABEL: ESTADO GENERAL CPU
-        # =============================
-        self.status = ctk.CTkLabel(self, text="t=0 | CPU: IDLE | Alg: -")
-        self.status.pack(fill="x", padx=10, pady=(6, 6))
+        # primera carga
+        self.refrescar_tabla()
 
-        self.refrescar_lista()
+    # ========== API esperada por VentanaPrincipal ==========
 
-    # ==========================================================
-    # ACTUALIZACIONES AUTOMÁTICAS
-    # ==========================================================
-    def cancelar_refrescos(self):
-        if self._after_id:
-            try:
-                self.after_cancel(self._after_id)
-            except Exception:
-                pass
-            self._after_id = None
+    def refrescar_tabla(self):
+        """Repinta la tabla de memoria usando planificador.obtener_procesos()."""
+        try:
+            procs = self.planificador.obtener_procesos()
+        except Exception:
+            procs = []
 
-    def programar_refrescos(self):
-        """Actualiza la interfaz cada 400 ms (solo tabla y CPU)."""
-        self.cancelar_refrescos()
+        header = " PID  NOMBRE   ESTADO        LLEGADA  CPU\n" + "-" * 52 + "\n"
+        lineas = [header]
+        for p in procs:
+            pid = getattr(p, "pid", "")
+            nom = getattr(p, "nombre", "")
+            est = getattr(p, "estado", "")
+            leg = getattr(p, "instante_llegada", getattr(p, "llegada", ""))
+            cpu = getattr(p, "cpu_total", getattr(p, "cpu", ""))
+            lineas.append(f"{pid:>4}  {str(nom)[:10]:<10} {est:<12} {leg:>7}  {cpu:>3}\n")
 
-        def tick():
-            try:
-                self.planificador.simular_tick(1)
-                self.refrescar_lista()
-            finally:
-                self._after_id = self.after(400, tick)
+        texto = "".join(lineas) if len(procs) else "Sin procesos cargados.\n"
 
-        self._after_id = self.after(400, tick)
+        self.txt_mem.configure(state="normal")
+        self.txt_mem.delete("1.0", "end")
+        self.txt_mem.insert("end", texto)
+        self.txt_mem.configure(state="disabled")
 
-    # ==========================================================
-    # MÉTODOS DE ACTUALIZACIÓN
-    # ==========================================================
-    def refrescar_lista(self):
-        """Refresca la tabla de procesos."""
-        for i in self.tree.get_children():
-            self.tree.delete(i)
+    def refrescar_estado_pequeno(self, t: int, pid_en_cpu: Optional[int], alg: str):
+        cpu_txt = f"PID {pid_en_cpu}" if pid_en_cpu is not None else "IDLE"
+        self.lbl_peq.configure(text=f"t={t} | CPU: {cpu_txt} | Alg: {alg}")
 
-        procesos = self.planificador.obtener_procesos()
-        procesos.sort(key=lambda p: (p.estado == "Finalizado", p.pid))
+    def mostrar_tabla_eficiencia(self):
+        """Abre una ventana con la tabla de métricas."""
+        try:
+            filas, prom = self.planificador.obtener_metricas()
+        except Exception:
+            filas, prom = ([], ("", "PROMEDIO", "", "", 0, 0, 0, 0, 0))
 
-        for p in procesos:
-            self.tree.insert("", "end", values=(
-                p.pid, p.nombre, p.estado,
-                p.instante_llegada, p.cpu_total
-            ))
+        win = ctk.CTkToplevel(self)
+        win.title("Tabla de Eficiencia")
+        win.geometry("700x360")
 
-    def actualizar_estado(self, t, proceso_actual, cola_ready, algoritmo_nombre):
-        """Actualiza el estado de CPU dinámicamente."""
-        if proceso_actual:
-            txt_cpu = f"t={t} | CPU: {proceso_actual.nombre} (PID {proceso_actual.pid}) | Alg: {algoritmo_nombre}"
+        lbl = ctk.CTkLabel(win, text="Tabla de Eficiencia", font=("Segoe UI", 16, "bold"))
+        lbl.pack(anchor="w", padx=12, pady=(10, 6))
+
+        txt = ctk.CTkTextbox(win, font=MONO)
+        txt.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+
+        header = "PID  Nombre      Llegada  CPU  T. Fin  Retorno  Espera  Respuesta  Eficiencia\n" + "-" * 90 + "\n"
+        txt.insert("end", header)
+        for (pid, nombre, llegada, cpu, tfin, ret, esp, resp, eff) in filas:
+            eff_str = f"{eff:.2f}" if isinstance(eff, (int, float)) and eff is not None else ""
+            txt.insert("end", f"{pid:>3}  {str(nombre)[:10]:<10}  {str(llegada):>7}  {str(cpu):>3}  {str(tfin):>5}  {str(ret):>7}  {str(esp):>6}  {str(resp):>9}  {eff_str:>10}\n")
+
+        # Promedios
+        _, pnom, _, _, ptfin, pret, pesp, presp, peff = prom
+        peff_str = f"{peff:.2f}" if isinstance(peff, (int, float)) else peff
+        txt.insert("end", "\n" + "-" * 90 + "\n")
+        txt.insert("end", f"     {pnom:<10}              {str(ptfin):>5}  {str(pret):>7}  {str(pesp):>6}  {str(presp):>9}  {peff_str:>10}\n")
+        txt.configure(state="disabled")
+
+        btn = ctk.CTkButton(win, text="Cerrar", command=win.destroy)
+        btn.pack(pady=(0, 10))
+
+    # ========== NUEVO: orden de finalización ==========
+
+    def mostrar_orden_finalizacion(self, orden: List[Dict[str, Any]]):
+        """
+        orden: lista de dicts como [{"pid": int, "nombre": str, "t_fin": int}, ...]
+        """
+        self.txt_final.configure(state="normal")
+        self.txt_final.delete("1.0", "end")
+        if not orden:
+            self.txt_final.insert("end", "Aún no hay procesos finalizados...\n")
         else:
-            txt_cpu = f"t={t} | CPU: IDLE | Alg: {algoritmo_nombre}"
-        self.status.configure(text=txt_cpu)
-
-        self.refrescar_lista()
-
-    # ==========================================================
-    # NUEVO: mostrar orden de finalización al terminar
-    # ==========================================================
-    def mostrar_orden_finalizacion(self, resultados_rr):
-        """Muestra el orden de finalización al finalizar Round Robin."""
-        self._resultados_finales = resultados_rr
-
-        procesos_finalizados = resultados_rr.get("procesos", [])
-        procesos_finalizados.sort(key=lambda p: p.t_fin if p.t_fin is not None else 9999)
-
-        self.txt_orden.configure(state="normal")
-        self.txt_orden.delete("1.0", "end")
-
-        if not procesos_finalizados:
-            self.txt_orden.insert("1.0", "Aún no hay procesos finalizados...\n")
-        else:
-            for i, p in enumerate(procesos_finalizados, start=1):
-                tfin = getattr(p, "t_fin", "?")
-                self.txt_orden.insert("end", f"{i}. {p.nombre} (PID {p.pid}) — t_fin = {tfin}\n")
-
-        self.txt_orden.configure(state="disabled")
+            for i, item in enumerate(orden, start=1):
+                pid = item.get("pid")
+                nom = item.get("nombre", "")
+                tfin = item.get("t_fin")
+                self.txt_final.insert("end", f"{i:>2}. {nom} (PID {pid})  t_fin={tfin}\n")
+        self.txt_final.configure(state="disabled")
+    

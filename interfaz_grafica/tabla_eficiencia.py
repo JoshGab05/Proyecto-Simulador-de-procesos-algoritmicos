@@ -1,79 +1,105 @@
 # interfaz_grafica/tabla_eficiencia.py
+from __future__ import annotations
 import customtkinter as ctk
 from tkinter import ttk
 
-def _get(p, k, default=None):
-    """Obtiene valores de dict o de objeto."""
-    if isinstance(p, dict):
-        return p.get(k, default)
-    return getattr(p, k, default)
+
+def _ga(obj, key, default=None):
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
 
 class TablaEficiencia(ctk.CTkToplevel):
-    """Ventana que muestra la tabla de eficiencia de los procesos."""
-    def __init__(self, master, resultados):
-        super().__init__(master)
+    """
+    Ventana de métricas con formato:
+    PID | Nombre | Llegada (ti) | CPU (t) | T. Fin (tf) | Retorno (r=tf-ti) | Espera (w=r-t) | Respuesta (t_inicio-ti) | Eficiencia (t/r)
+    Incluye fila de promedios al final.
+    """
+
+    COLS = ("PID", "Nombre", "Llegada", "CPU", "T. Fin", "Retorno", "Espera", "Respuesta", "Eficiencia")
+
+    def __init__(self, parent, planificador):
+        super().__init__(parent)
         self.title("Tabla de Eficiencia")
-        self.geometry("800x450")
-        self.resizable(True, True)
+        self.geometry("980x520")
+        self.minsize(860, 420)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-        # Normalizar estructura de resultados
-        if isinstance(resultados, dict):
-            self.procesos = list(resultados.get("procesos", resultados.get("resultados", [])))
-        else:
-            self.procesos = list(resultados)
-
-        # Calcular métricas de eficiencia si faltan
-        for p in self.procesos:
-            llegada = _get(p, "llegada", _get(p, "instante_llegada", 0))
-            cpu = _get(p, "cpu_total", _get(p, "duracion", 0))
-            t_inicio = _get(p, "t_inicio", 0)
-            t_fin = _get(p, "t_fin", 0)
-
-            retorno = max(0, t_fin - llegada) if t_fin and llegada is not None else 0
-            espera = max(0, retorno - (cpu or 0))
-            respuesta = max(0, t_inicio - llegada)
-            eficiencia = (cpu / retorno) if retorno > 0 else 0.0
-
-            if isinstance(p, dict):
-                p.update({
-                    "retorno": retorno,
-                    "espera": espera,
-                    "respuesta": respuesta,
-                    "eficiencia": eficiencia
-                })
-            else:
-                setattr(p, "retorno", retorno)
-                setattr(p, "espera", espera)
-                setattr(p, "respuesta", respuesta)
-                setattr(p, "eficiencia", eficiencia)
-
-        # Crear la tabla
         frame = ctk.CTkFrame(self)
-        frame.pack(fill="both", expand=True, padx=10, pady=10)
+        frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
 
-        columnas = (
-            "PID", "Nombre", "Llegada", "CPU", "T. Fin",
-            "Retorno", "Espera", "Respuesta", "Eficiencia"
-        )
-        self.tree = ttk.Treeview(frame, columns=columnas, show="headings", height=16)
+        self.tree = ttk.Treeview(frame, columns=self.COLS, show="headings", height=16)
+        for c in self.COLS:
+            self.tree.heading(c, text=c)
+        # anchos sugeridos
+        widths = [70, 120, 90, 80, 90, 100, 90, 105, 100]
+        for c, w in zip(self.COLS, widths):
+            self.tree.column(c, width=w, anchor="center", stretch=True)
 
-        for col in columnas:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, anchor="center", width=90)
+        yscroll = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=yscroll.set)
 
-        self.tree.pack(fill="both", expand=True)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        yscroll.grid(row=0, column=1, sticky="ns")
 
-        for p in self.procesos:
-            self.tree.insert("", "end", values=(
-                _get(p, "pid", "-"),
-                _get(p, "nombre", "-"),
-                _get(p, "llegada", "-"),
-                _get(p, "cpu_total", _get(p, "duracion", "-")),
-                _get(p, "t_fin", "-"),
-                _get(p, "retorno", "-"),
-                _get(p, "espera", "-"),
-                _get(p, "respuesta", "-"),
-                f"{_get(p, 'eficiencia', 0):.2f}"
-            ))
+        btn = ctk.CTkButton(self, text="Cerrar", command=self.destroy)
+        btn.grid(row=1, column=0, pady=10)
 
-        ctk.CTkButton(self, text="Cerrar", command=self.destroy).pack(pady=8)
+        # ---- Poblar datos ----
+        try:
+            procesos = list(planificador.obtener_procesos())
+        except Exception:
+            procesos = getattr(planificador, "_procesos", [])
+
+        filas = []
+        for p in procesos:
+            pid = _ga(p, "pid")
+            nombre = _ga(p, "nombre", f"P{pid}")
+            ti = int(_ga(p, "instante_llegada", 0) or 0)
+            t = int(_ga(p, "cpu_total", _ga(p, "cpu_restante", 0)) or 0)
+            tf = _ga(p, "t_fin", None)
+            ti_inicio = _ga(p, "t_inicio", None)
+
+            r = None
+            w = None
+            resp = None
+            eff = None
+
+            if tf is not None:
+                r = int(tf) - ti
+                w = r - t
+                resp = None if ti_inicio is None else (int(ti_inicio) - ti)
+                try:
+                    eff = round(t / r, 2) if r and r > 0 else None
+                except Exception:
+                    eff = None
+
+            filas.append((pid, nombre, ti, t,
+                          ("" if tf is None else int(tf)),
+                          ("" if r is None else r),
+                          ("" if w is None else w),
+                          ("" if resp is None else resp),
+                          ("" if eff is None else eff)))
+
+        # Insertar filas
+        for row in filas:
+            self.tree.insert("", "end", values=row)
+
+        # Promedios
+        def _avg(ii):
+            vals = [v[ii] for v in filas if isinstance(v[ii], (int, float))]
+            return round(sum(vals) / len(vals), 2) if vals else ""
+
+        avg_tfin = _avg(4)
+        avg_r = _avg(5)
+        avg_w = _avg(6)
+        avg_resp = _avg(7)
+        # Promedio de eficiencias individuales (t/r)
+        eff_vals = [v[8] for v in filas if isinstance(v[8], (int, float))]
+        avg_eff = round(sum(eff_vals) / len(eff_vals), 2) if eff_vals else ""
+
+        self.tree.insert("", "end", values=("", "PROMEDIO", "", "", avg_tfin, avg_r, avg_w, avg_resp, avg_eff))

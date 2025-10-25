@@ -1,201 +1,176 @@
 # interfaz_grafica/panel_control.py
-import tkinter as tk
+from __future__ import annotations
 import customtkinter as ctk
-from logica.proceso import Proceso
 
 
-def _to_int(s: str, default: int = 0) -> int:
-    try:
-        return int(str(s).strip())
-    except Exception:
-        return default
-
-
-class PanelControl(ctk.CTkScrollableFrame):
-    def __init__(
-        self,
-        master,
-        gestor_memoria,
-        planificador,
-        panel_estado,
-        ejecutar_algoritmo_callback=None,   # callback visual (RR/FCFS y futuros)
-        mostrar_tabla_callback=None,        # para abrir la tabla de eficiencia
-    ):
-        super().__init__(master, width=350, height=620)
-
-        self.gestor_memoria = gestor_memoria
+class PanelControl(ctk.CTkFrame):
+    """
+    Panel de control (versión estable):
+      - Lee CPU de 'CPU (ticks)' y llegada de 'Llegada'.
+      - Llama planificador.agregar_proceso(nombre, cpu, llegada).
+      - Dispara iniciar/pausar/reiniciar de VentanaPrincipal.
+    """
+    def __init__(self, master, gestor_memoria, planificador,
+                 panel_estado=None,
+                 ejecutar_algoritmo_callback=None,
+                 mostrar_tabla_callback=None):
+        super().__init__(master)
+        self.gestor = gestor_memoria
         self.planificador = planificador
         self.panel_estado = panel_estado
-        self.ejecutar_algoritmo_callback = ejecutar_algoritmo_callback
-        self.mostrar_tabla_callback = mostrar_tabla_callback
+        self._ejecutar_algoritmo = ejecutar_algoritmo_callback
+        self._mostrar_tabla = mostrar_tabla_callback
 
-        # ---------- Título ----------
-        ctk.CTkLabel(self, text="Control de Simulación", font=("Arial", 22)).pack(pady=(8, 6))
+        self.grid_rowconfigure(99, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-        # ---------- Selección de algoritmo ----------
-        row = ctk.CTkFrame(self)
-        row.pack(fill="x", padx=10, pady=(0, 6))
-        ctk.CTkLabel(row, text="Algoritmo:").pack(side="left", padx=(0, 6))
-        self.alg_var = ctk.StringVar(value="FCFS")
-        ctk.CTkOptionMenu(
-            row,
-            values=["FCFS", "SJF", "SRTF", "RR"],
-            variable=self.alg_var,
-            command=self._on_alg_change,
-        ).pack(side="left")
+        ctk.CTkLabel(self, text="Control de Simulación",
+                     font=ctk.CTkFont(size=22, weight="bold")).grid(
+            row=0, column=0, sticky="w", padx=8, pady=(8, 6))
 
-        # ---------- Quantum (solo RR) ----------
-        qrow = ctk.CTkFrame(self)
-        qrow.pack(fill="x", padx=10, pady=(0, 6))
-        ctk.CTkLabel(qrow, text="Quantum (RR):").pack(side="left", padx=(0, 6))
-        self.quantum_var = tk.StringVar(value="2")
-        ctk.CTkEntry(qrow, width=60, textvariable=self.quantum_var).pack(side="left")
-        ctk.CTkButton(qrow, text="Aplicar", command=self._apply_quantum).pack(side="left", padx=6)
+        r = 1
+        # Algoritmo
+        ctk.CTkLabel(self, text="Algoritmo:").grid(row=r, column=0, sticky="w", padx=8)
+        self.cbo_alg = ctk.CTkOptionMenu(self, values=["FCFS", "SJF", "SRTF", "RR"])
+        self.cbo_alg.set("FCFS")
+        self.cbo_alg.grid(row=r, column=0, sticky="ew", padx=(90, 8), pady=4)
 
-        # ---------- Formulario de Proceso ----------
-        form = ctk.CTkFrame(self)
-        form.pack(fill="x", padx=10, pady=(6, 6))
-        ctk.CTkLabel(form, text="Nombre:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
-        ctk.CTkLabel(form, text="RAM (MB):").grid(row=1, column=0, sticky="e", padx=4, pady=4)
-        ctk.CTkLabel(form, text="CPU (ticks):").grid(row=2, column=0, sticky="e", padx=4, pady=4)
-        ctk.CTkLabel(form, text="Llegada:").grid(row=3, column=0, sticky="e", padx=4, pady=4)
-        ctk.CTkLabel(form, text="Quantum:").grid(row=4, column=0, sticky="e", padx=4, pady=4)
+        # Quantum (RR)
+        r += 1
+        ctk.CTkLabel(self, text="Quantum (RR):").grid(row=r, column=0, sticky="w", padx=8)
+        self.entry_quantum = ctk.CTkEntry(self, width=90)
+        self.entry_quantum.insert(0, "2")
+        self.entry_quantum.grid(row=r, column=0, sticky="e", padx=8, pady=4)
 
-        self.nombre_var = tk.StringVar(value="")
-        self.ram_var = tk.StringVar(value="128")
-        self.cpu_var = tk.StringVar(value="5")
-        self.llegada_var = tk.StringVar(value="0")
-        self.pquantum_var = tk.StringVar(value="-")
+        # Nombre
+        r += 1
+        ctk.CTkLabel(self, text="Nombre:").grid(row=r, column=0, sticky="w", padx=8)
+        self.entry_nombre = ctk.CTkEntry(self)
+        self.entry_nombre.grid(row=r, column=0, sticky="ew", padx=(80, 8), pady=4)
 
-        ctk.CTkEntry(form, textvariable=self.nombre_var, width=160).grid(row=0, column=1, sticky="w")
-        ctk.CTkEntry(form, textvariable=self.ram_var, width=80).grid(row=1, column=1, sticky="w")
-        ctk.CTkEntry(form, textvariable=self.cpu_var, width=80).grid(row=2, column=1, sticky="w")
-        ctk.CTkEntry(form, textvariable=self.llegada_var, width=80).grid(row=3, column=1, sticky="w")
-        ctk.CTkEntry(form, textvariable=self.pquantum_var, width=80).grid(row=4, column=1, sticky="w")
+        # RAM (decorativo)
+        r += 1
+        ctk.CTkLabel(self, text="RAM (MB):").grid(row=r, column=0, sticky="w", padx=8)
+        self.entry_ram = ctk.CTkEntry(self, width=90)
+        self.entry_ram.insert(0, "128")
+        self.entry_ram.grid(row=r, column=0, sticky="e", padx=8, pady=4)
 
-        ctk.CTkButton(form, text="Agregar Proceso", command=self._agregar_proceso)\
-            .grid(row=5, column=0, columnspan=2, pady=8)
+        # CPU (ticks)
+        r += 1
+        ctk.CTkLabel(self, text="CPU (ticks):").grid(row=r, column=0, sticky="w", padx=8)
+        self.entry_cpu = ctk.CTkEntry(self, width=90)
+        self.entry_cpu.insert(0, "1")
+        self.entry_cpu.grid(row=r, column=0, sticky="e", padx=8, pady=4)
 
-        # ---------- Botones de simulación ----------
-        btns = ctk.CTkFrame(self)
-        btns.pack(fill="x", padx=10, pady=(6, 6))
-        ctk.CTkButton(btns, text="▶ Iniciar", command=self._iniciar).pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="⏸ Pausar", command=self._pausar).pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="⟳ Reiniciar", command=self._reiniciar).pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="🗑 Limpiar", command=self._limpiar).pack(side="left", padx=4)
+        # Llegada
+        r += 1
+        ctk.CTkLabel(self, text="Llegada:").grid(row=r, column=0, sticky="w", padx=8)
+        self.entry_llegada = ctk.CTkEntry(self, width=90)
+        self.entry_llegada.insert(0, "0")
+        self.entry_llegada.grid(row=r, column=0, sticky="e", padx=8, pady=4)
 
-        # ---------- Tabla de eficiencia ----------
-        ctk.CTkButton(self, text="📊 Ver Tabla de Eficiencia", command=self._show_table)\
-            .pack(fill="x", padx=10, pady=(2, 8))
+        # Quantum “decorativo” (lo dejas si lo usas para mostrar algo)
+        r += 1
+        ctk.CTkLabel(self, text="Quantum:").grid(row=r, column=0, sticky="w", padx=8)
+        self.entry_quantum2 = ctk.CTkEntry(self, width=90)
+        self.entry_quantum2.insert(0, "1")
+        self.entry_quantum2.grid(row=r, column=0, sticky="e", padx=8, pady=4)
 
-        # ---------- Info ----------
-        self.label_info = ctk.CTkLabel(self, text="Listo.", wraplength=300, justify="left")
-        self.label_info.pack(pady=4, padx=10)
+        # Botones
+        r += 1
+        ctk.CTkButton(self, text="Agregar Proceso", command=self._agregar_proceso).grid(
+            row=r, column=0, padx=8, pady=(6, 10), sticky="ew")
 
-        # Config inicial
+        r += 1
+        ctk.CTkButton(self, text="► Iniciar", command=self._iniciar).grid(
+            row=r, column=0, padx=8, pady=4, sticky="ew")
+        r += 1
+        ctk.CTkButton(self, text="⏸ Pausar", command=self._pausar).grid(
+            row=r, column=0, padx=8, pady=4, sticky="ew")
+        r += 1
+        ctk.CTkButton(self, text="↻ Reiniciar", command=self._reiniciar).grid(
+            row=r, column=0, padx=8, pady=4, sticky="ew")
+
+        r += 1
+        ctk.CTkButton(self, text="🗎 Ver Tabla de Eficiencia", command=self._abrir_tabla).grid(
+            row=r, column=0, padx=8, pady=(8, 8), sticky="ew")
+
+        r += 1
+        self.lbl_estado = ctk.CTkLabel(self, text="Listo.")
+        self.lbl_estado.grid(row=r, column=0, sticky="w", padx=8, pady=(4, 8))
+
+    # -------------------- acciones --------------------
+
+    def _leer_int(self, entry, default=0) -> int:
         try:
-            self.planificador.set_algoritmo(self.alg_var.get())
+            return int(entry.get())
+        except Exception:
+            return default
+
+    def _agregar_proceso(self):
+
+        def _i(entry, default=0):
+            try:
+                return int(entry.get())
+            except Exception:
+                return default
+
+        nombre  = (self.entry_nombre.get() or "").strip()
+        if not nombre:
+            # nombre por defecto si está vacío
+            try:
+                n = len(self.planificador.obtener_procesos()) + 1
+            except Exception:
+                n = 1
+            nombre = f"P{n}"
+
+        cpu      = _i(self.entry_cpu, 1)          # <-- CPU correcto
+        llegada  = _i(self.entry_llegada, 0)      # <-- Llegada correcta
+
+        # si el usuario cambió quantum, actualízalo en el planificador (para RR)
+        if hasattr(self, "entry_quantum") and hasattr(self.planificador, "set_quantum"):
+            self.planificador.set_quantum(_i(self.entry_quantum, 2))
+
+        # Alta en el planificador
+        self.planificador.agregar_proceso(nombre=nombre, cpu=cpu, llegada=llegada)
+
+        # Refrescos UI
+        if getattr(self.master, "panel_estado", None) and hasattr(self.master.panel_estado, "refrescar_tabla"):
+            self.master.panel_estado.refrescar_tabla()
+
+        # Actualiza filas del gantt (panel ejecución)
+        try:
+            procs = list(self.planificador.obtener_procesos())
+            top = self.winfo_toplevel()
+            if hasattr(top, "panel_ejecucion") and hasattr(top.panel_ejecucion, "set_procesos_base"):
+                top.panel_ejecucion.set_procesos_base(procs)
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # HANDLERS
-    # ------------------------------------------------------------------
-    def _on_alg_change(self, value):
-        try:
-            self.planificador.set_algoritmo(self.alg_var.get())
-            self.label_info.configure(text=f"Algoritmo seleccionado: {self.alg_var.get()}")
-        except Exception as e:
-            self.label_info.configure(text=f"Error al cambiar algoritmo: {e}")
+        self.lbl_estado.configure(text=f"Proceso agregado: {nombre}")
 
-    def _apply_quantum(self):
-        q = _to_int(self.quantum_var.get(), default=2)
-        try:
-            self.planificador.set_rr_quantum(q)
-            self.label_info.configure(text=f"Quantum RR={q} aplicado.")
-        except Exception as e:
-            self.label_info.configure(text=f"Error al aplicar quantum: {e}")
+    
 
-    def _agregar_proceso(self):
-        nombre = (self.nombre_var.get() or "").strip() or None
-        try:
-            p = Proceso(
-                nombre=nombre,
-                memoria_requerida=_to_int(self.ram_var.get(), 128),
-                duracion=_to_int(self.cpu_var.get(), 1),
-                llegada=_to_int(self.llegada_var.get(), 0),
-                quantum=(
-                    None if (self.pquantum_var.get() or "").strip() in ("", "-", "None")
-                    else _to_int(self.pquantum_var.get(), 1)
-                ),
-            )
-        except Exception as e:
-            self.label_info.configure(text=f"Datos inválidos: {e}")
-            return
-
-        ok = self.planificador.agregar_proceso(p)
-        if ok:
-            self.label_info.configure(text=f"Proceso agregado: {p.nombre} (PID {p.pid})")
-            if self.panel_estado:
-                self.panel_estado.refrescar_lista()
-        else:
-            self.label_info.configure(text="❌ Sin memoria disponible para ese proceso.")
-
-    # ------------------------------------------------------------------
-    # BOTONES DE SIMULACIÓN
-    # ------------------------------------------------------------------
     def _iniciar(self):
-        """
-        Inicia la simulación:
-        - RR y FCFS: intentan usar el callback visual si está presente.
-        - SJF/SRTF (u otros): usan el planificador normal con auto-refresco.
-        """
-        alg = (self.alg_var.get() or "").upper()
-
-        # Visuales (si hay callback): RR y FCFS
-        if alg in ("RR", "FCFS") and self.ejecutar_algoritmo_callback:
-            q = _to_int(self.quantum_var.get(), 2)
-            if alg == "RR":
-                self.label_info.configure(text=f"Iniciando simulación (RR, Q={q})...")
-                self.ejecutar_algoritmo_callback(algorithm="RR", quantum=q)
-            else:
-                self.label_info.configure(text="Iniciando simulación (FCFS visual)...")
-                self.ejecutar_algoritmo_callback(algorithm="FCFS", quantum=q)  # quantum se ignora en FCFS
-            return
-
-        # No visual (clásico)
-        try:
-            self.planificador.set_algoritmo(alg)
-            self.planificador.iniciar()
-            if self.panel_estado:
-                self.panel_estado.programar_refrescos()
-            self.label_info.configure(text=f"Iniciando simulación ({alg})...")
-        except Exception as e:
-            self.label_info.configure(text=f"Error al iniciar: {e}")
+        alg = self.cbo_alg.get().strip()
+        q = self._leer_int(self.entry_quantum, 2)
+        if callable(self._ejecutar_algoritmo):
+            # VentanaPrincipal.iniciar_simulacion(algorithm, quantum)
+            self._ejecutar_algoritmo(algorithm=alg, quantum=q)
+        self.lbl_estado.configure(text=f"Iniciando simulación ({alg})...")
 
     def _pausar(self):
-        self.planificador.detener()
-        if self.panel_estado:
-            self.panel_estado.refrescar_lista()
-        self.label_info.configure(text="⏸ Simulación pausada.")
+        top = self.winfo_toplevel()
+        if hasattr(top, "detener_simulacion"):
+            top.detener_simulacion()
+        self.lbl_estado.configure(text="Simulación pausada.")
 
     def _reiniciar(self):
-        self.planificador.reiniciar()
-        if self.panel_estado:
-            self.panel_estado.refrescar_lista()
-        self.label_info.configure(text="🔁 Simulación reiniciada.")
+        top = self.winfo_toplevel()
+        if hasattr(top, "reiniciar_simulacion"):
+            top.reiniciar_simulacion()
+        self.lbl_estado.configure(text="Simulación reiniciada.")
 
-    def _limpiar(self):
-        self.planificador.limpiar()
-        if self.panel_estado:
-            self.panel_estado.refrescar_lista()
-        self.label_info.configure(text="🗑 Todo limpio.")
-
-    # ------------------------------------------------------------------
-    # TABLA DE EFICIENCIA
-    # ------------------------------------------------------------------
-    def _show_table(self):
-        if self.mostrar_tabla_callback:
-            self.mostrar_tabla_callback()
-        else:
-            self.label_info.configure(text="No hay resultados para mostrar.")
+    def _abrir_tabla(self):
+        if callable(self._mostrar_tabla):
+            self._mostrar_tabla()
