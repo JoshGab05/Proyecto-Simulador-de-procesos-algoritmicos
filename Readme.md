@@ -161,7 +161,7 @@ Este simulador replica el comportamiento de un sistema operativo gestionando mú
 
 ## SJF (Shortest Job First)
 
-  -Procesos:
+-Procesos:
    -A: CPU=5, Llegada=0
    -B: CPU=3, Llegada=1  
    -C: CPU=1, Llegada=2
@@ -181,7 +181,7 @@ Problema: Inanición (Starvation)
 
 ## SRTF (Shortest Remaining Time First)
 
-  -Procesos:
+-Procesos:
    -A: CPU=5, Llegada=0
    -B: CPU=3, Llegada=1  
    -C: CPU=1, Llegada=2
@@ -203,9 +203,9 @@ Problema: Inanición (Starvation)
 En éste algoritmo, al tener la característica de sistema de tiempo compartido,
 tendremos que especificar el Quantum.
 
- -QUANTUM = 2 
+-QUANTUM = 2 
 
-  -Procesos:
+-Procesos:
    -A: CPU=5, Llegada=0
    -B: CPU=3, Llegada=1  
    -C: CPU=4, Llegada=2
