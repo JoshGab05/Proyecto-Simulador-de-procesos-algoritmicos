@@ -213,6 +213,12 @@ tendremos que especificar el Quantum.
 <img width="1365" height="713" alt="image" src="https://github.com/user-attachments/assets/fe36d9ca-5f6b-4fb8-b109-a4c61cd79798" />
 <img width="695" height="387" alt="image" src="https://github.com/user-attachments/assets/26f80fe4-4197-4ffe-ad93-5227e9058cb1" />
 
+## Características
+  -SÍ es expropiativo: Por tiempo, no por prioridad
+  -Equitativo: Todos los procesos reciben tiempo de CPU
+  -Buen tiempo de respuesta
+
+Overhead por cambios frecuentes de contexto
 
 
 ## Autores
