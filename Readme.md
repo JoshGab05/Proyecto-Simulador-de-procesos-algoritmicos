@@ -144,9 +144,9 @@ Este simulador replica el comportamiento de un sistema operativo gestionando mú
 
  -Al cuál le ingresaremos los siguientes datos:
   -Procesos:
-   -A: CPU=5, Llegada=0
-   -B: CPU=3, Llegada=1  
-   -C: CPU=4, Llegada=2
+  A: CPU=5, Llegada=0
+  B: CPU=3, Llegada=1  
+  C: CPU=4, Llegada=2
 
 <img width="227" height="296" alt="image" src="https://github.com/user-attachments/assets/70a01d8c-75c5-4e79-b041-cbfaa9f11bd5" />
 
@@ -162,9 +162,9 @@ Este simulador replica el comportamiento de un sistema operativo gestionando mú
 ## SJF (Shortest Job First)
 
 -Procesos:
-   -A: CPU=5, Llegada=0
-   -B: CPU=3, Llegada=1  
-   -C: CPU=1, Llegada=2
+  A: CPU=5, Llegada=0
+  B: CPU=3, Llegada=1  
+  C: CPU=1, Llegada=2
 
 <img width="1365" height="718" alt="image" src="https://github.com/user-attachments/assets/ee692ba6-6a49-494c-a7cf-4e9e918a5219" />
 <img width="698" height="391" alt="image" src="https://github.com/user-attachments/assets/e897a37c-bf02-4105-b56b-5fc5b5364479" />
@@ -182,9 +182,9 @@ Problema: Inanición (Starvation)
 ## SRTF (Shortest Remaining Time First)
 
 -Procesos:
-   -A: CPU=5, Llegada=0
-   -B: CPU=3, Llegada=1  
-   -C: CPU=1, Llegada=2
+  A: CPU=5, Llegada=0
+  B: CPU=3, Llegada=1  
+  C: CPU=1, Llegada=2
 
 <img width="1365" height="715" alt="image" src="https://github.com/user-attachments/assets/7946c627-de58-4225-8f49-a838884d498a" />
 <img width="696" height="389" alt="image" src="https://github.com/user-attachments/assets/b8876c4a-e1bb-4d61-b8e6-a7b100e73bc7" />
@@ -206,9 +206,9 @@ tendremos que especificar el Quantum.
 -QUANTUM = 2 
 
 -Procesos:
-   -A: CPU=5, Llegada=0
-   -B: CPU=3, Llegada=1  
-   -C: CPU=4, Llegada=2
+  A: CPU=5, Llegada=0
+  B: CPU=3, Llegada=1  
+  C: CPU=4, Llegada=2
 
 <img width="1365" height="713" alt="image" src="https://github.com/user-attachments/assets/fe36d9ca-5f6b-4fb8-b109-a4c61cd79798" />
 <img width="695" height="387" alt="image" src="https://github.com/user-attachments/assets/26f80fe4-4197-4ffe-ad93-5227e9058cb1" />
