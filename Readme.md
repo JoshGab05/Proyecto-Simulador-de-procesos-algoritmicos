@@ -100,6 +100,10 @@ Frontend
     py -m venv .venv
     .\.venv\Scripts\activate   # En Windows PowerShell
 
+2.1. Es posible que necesite un Bypass para activar el entorno virtual (venv)
+    ```bash
+       Set-ExecutionPolicy -Scope Process.   -ExecutionPolicy Bypass
+    
 3. Instalar dependencias:
     ```bash
     pip install -r requirements.txt
