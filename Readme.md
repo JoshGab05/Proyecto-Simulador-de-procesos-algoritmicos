@@ -11,18 +11,50 @@ Fue desarrollado en **Python** con soporte para interfaz gráfica usando **Custo
 ---
 
 ##  Características principales
+
 - Simulación de **procesos con llegada, duración, quantum y memoria RAM**.
 - Interfaz gráfica moderna con **CustomTkinter**.
 - Visualización en tiempo real de:
   - Estado de la memoria.
   - Procesos en ejecución y en espera.
   - Historial de ejecución (ticks).
+
+## Visualización Avanzada
+Diagrama de Gantt interactivo en tiempo real.
+Tabla de ejecución con marcas por tick.
+Panel de métricas con cálculos automáticos.
+Orden de finalización de procesos.
+Interfaz responsive adaptable a diferentes tamaños.
+
 - Soporte para múltiples algoritmos de planificación:
-  - **FCFS (First Come, First Served)**.
-  - **SJF (Shortest Job First)**.
-  - **SRTF (Shortest Remaining Time First)**.
+  - **FCFS (First Come, First Served)**: Planificación no expropiativa.
+  - **SJF (Shortest Job First)**: Selecciona el proceso más corto.
+  - **SRTF (Shortest Remaining Time First)**: Versión expropiativa de SJF.
   - **Round Robin** (con quantum configurable).
 - Gestión de memoria con asignación y liberación dinámica.
+
+## Funcionalidades
+Configuración flexible de procesos (nombre, CPU, llegada, RAM).
+Control de simulación (iniciar, pausar, reiniciar).
+Cálculo automático de métricas de desempeño.
+Gestión de memoria con límites configurables.
+Exportación visual de resultados.
+
+## Tecnologías Utilizadas
+
+Backend
+
+<img width="85" height="19" alt="image" src="https://github.com/user-attachments/assets/7afbce0a-2699-4973-b5f8-bb740a99c1b4" />
+<img width="102" height="17" alt="image" src="https://github.com/user-attachments/assets/ebe5485b-1185-4cf4-913e-21e5a6f807d9" />
+<img width="21" height="14" alt="image" src="https://github.com/user-attachments/assets/9c529df0-e79f-4d20-abc6-0cec29c0a577" />
+<img width="20" height="18" alt="image" src="https://github.com/user-attachments/assets/5e03bf19-5b8b-456f-ba7c-09421a920be7" />
+<img width="20" height="16" alt="image" src="https://github.com/user-attachments/assets/5875227c-218e-472d-9720-c69a71c36242" />
+
+Frontend
+
+<img width="157" height="25" alt="image" src="https://github.com/user-attachments/assets/de746c74-8477-4414-9d45-1df5d3ccc7c7" />
+<img width="129" height="27" alt="image" src="https://github.com/user-attachments/assets/f5e84bbb-62eb-4631-8a19-8a37fad868d2" />
+
 
 
 ---
@@ -31,25 +63,23 @@ Fue desarrollado en **Python** con soporte para interfaz gráfica usando **Custo
 1. Clonar el repositorio:
    ```bash
     Proyecto-Simulador-de-procesos-algoritmicos/
-    │── algoritmos/ # Implementación de los algoritmos de planificación
-    │ ├── fcfs.AlgoritmoFIFO.py
-    │ ├── sjf.AlgoritmoSJF.py
-    │ ├── srtf.AlgoritmoSRTF.py
-    │ └── round_robin.py
-    │
-    │── interfaz_grafica/ # Interfaz gráfica (ventanas y paneles)
-    │ ├── panel_control.py
-    │ ├── panel_estado.py
-    │ └── ventana_principal.py
-    │
-    │── logica/ # Lógica de simulación y gestión de procesos
-    │ ├── gestor_memoria.py
-    │ ├── planificador.py
-    │ └── proceso.py
-    │
-    │── main.py # Punto de entrada principal
+    ├── logica/
+    │   ├── gestor_memoria.py      # Gestión de memoria
+    │   ├── planificador.py        # Núcleo del planificador
+    │   └── proceso.py             # Modelo de proceso
+    ├── algoritmos/
+    │   ├── fifo.py               # Algoritmo FCFS
+    │   ├── sjf.py                # Algoritmo SJF
+    │   ├── srtf.py               # Algoritmo SRTF
+    │   └── round_robin.py        # Algoritmo Round Robin
+    ├── interfaz_grafica/
+    │   ├── ventana_principal.py  # Ventana principal
+    │   ├── panel_control.py      # Panel de control
+    │   ├── panel_estado.py       # Panel de estado
+    │   ├── panel_ejecucion.py    # Visualización ejecución
+    │   └── tabla_eficiencia.py   # Tablas de métricas
+    └── main.py                   # Punto de entrada
     │── requirements.txt # Dependencias del proyecto
-
 ---
 
 ##  Requisitos
