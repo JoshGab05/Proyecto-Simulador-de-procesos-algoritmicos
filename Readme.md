@@ -20,11 +20,11 @@ Fue desarrollado en **Python** con soporte para interfaz gráfica usando **Custo
   - Historial de ejecución (ticks).
 
 ## Visualización Avanzada
-Diagrama de Gantt interactivo en tiempo real.
-Tabla de ejecución con marcas por tick.
-Panel de métricas con cálculos automáticos.
-Orden de finalización de procesos.
-Interfaz responsive adaptable a diferentes tamaños.
+-  Diagrama de Gantt interactivo en tiempo real.
+-  Tabla de ejecución con marcas por tick.
+-  Panel de métricas con cálculos automáticos.
+- Orden de finalización de procesos.
+- Interfaz responsive adaptable a diferentes tamaños.
 
 - Soporte para múltiples algoritmos de planificación:
   - **FCFS (First Come, First Served)**: Planificación no expropiativa.
@@ -34,11 +34,11 @@ Interfaz responsive adaptable a diferentes tamaños.
 - Gestión de memoria con asignación y liberación dinámica.
 
 ## Funcionalidades
-Configuración flexible de procesos (nombre, CPU, llegada, RAM).
-Control de simulación (iniciar, pausar, reiniciar).
-Cálculo automático de métricas de desempeño.
-Gestión de memoria con límites configurables.
-Exportación visual de resultados.
+- Configuración flexible de procesos (nombre, CPU, llegada, RAM).
+- Control de simulación (iniciar, pausar, reiniciar).
+- Cálculo automático de métricas de desempeño.
+- Gestión de memoria con límites configurables.
+- Exportación visual de resultados.
 
 ## Tecnologías Utilizadas
 
