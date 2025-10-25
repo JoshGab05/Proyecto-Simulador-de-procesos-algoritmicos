@@ -3,7 +3,10 @@
 Este proyecto es un **simulador gráfico de planificación de procesos** que implementa distintos **algoritmos de planificación de CPU**.  
 Fue desarrollado en **Python** con soporte para interfaz gráfica usando **CustomTkinter**.
 
-[![Texto alternativo](./imagen.png)](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+<img width="96" height="25" alt="image" src="https://github.com/user-attachments/assets/f2925711-d7c6-41e6-9d14-6fc1d50fc4f8" />
+<img width="156" height="25" alt="image" src="https://github.com/user-attachments/assets/2b94aaf3-5a63-43ec-aa9d-5a1f15e080eb" />
+
+
 
 ---
 
