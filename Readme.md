@@ -46,9 +46,9 @@ Backend
 
 <img width="85" height="19" alt="image" src="https://github.com/user-attachments/assets/c49a358e-9878-4759-8910-1c1c8bd48758" />
 <img width="102" height="17" alt="image" src="https://github.com/user-attachments/assets/ebe5485b-1185-4cf4-913e-21e5a6f807d9" />
-<img width="21" height="14" alt="image" src="https://github.com/user-attachments/assets/9c529df0-e79f-4d20-abc6-0cec29c0a577" />
+<img width="20" height="18" alt="image" src="https://github.com/user-attachments/assets/9c529df0-e79f-4d20-abc6-0cec29c0a577" />
 <img width="20" height="18" alt="image" src="https://github.com/user-attachments/assets/5e03bf19-5b8b-456f-ba7c-09421a920be7" />
-<img width="20" height="16" alt="image" src="https://github.com/user-attachments/assets/5875227c-218e-472d-9720-c69a71c36242" />
+<img width="20" height="18" alt="image" src="https://github.com/user-attachments/assets/5875227c-218e-472d-9720-c69a71c36242" />
 
 Frontend
 
