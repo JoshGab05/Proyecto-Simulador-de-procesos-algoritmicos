@@ -100,10 +100,6 @@ Frontend
     py -m venv .venv
     .\.venv\Scripts\activate   # En Windows PowerShell
 
-2.1. Es posible que necesite un Bypass para activar el entorno virtual (venv)
-    ```bash
-       Set-ExecutionPolicy -Scope Process.   -ExecutionPolicy Bypass
-    
 3. Instalar dependencias:
     ```bash
     pip install -r requirements.txt
@@ -136,9 +132,91 @@ Ejecuta el archivo principal:
 
 - Round Robin: Atiende por turnos con un quantum definido.
 
+## ¿CÓMO FUNCIONA EL PROYECTO?
+
+Este simulador replica el comportamiento de un sistema operativo gestionando múltiples procesos usando diferentes algoritmos de planificación. Veremos paso a paso cómo funciona:
+
+## Conoce nuestra interfaz:
+
+<img width="1365" height="718" alt="image" src="https://github.com/user-attachments/assets/0846beab-532f-4291-8c25-07c81fcf5a95" />
+
+## Iniciaremos la prueba con el Algoritmo FCFS (First-Come, First-Served)
+
+ -Al cuál le ingresaremos los siguientes datos:
+  -Procesos:
+   -A: CPU=5, Llegada=0
+   -B: CPU=3, Llegada=1  
+   -C: CPU=4, Llegada=2
+
+<img width="227" height="296" alt="image" src="https://github.com/user-attachments/assets/70a01d8c-75c5-4e79-b041-cbfaa9f11bd5" />
+
+<img width="1365" height="715" alt="image" src="https://github.com/user-attachments/assets/0d24a0ca-704a-42f5-be5e-3432d1600c14" />
+
+<img width="696" height="387" alt="image" src="https://github.com/user-attachments/assets/91069817-06c1-428e-960e-dc9d7bc9e6ad" />
+
+## Características
+  -No expropiativo: Una vez que empieza, termina.
+  -Orden estricto por tiempo de llegada.
+  -Simple de implementar.
+
+## SJF (Shortest Job First)
+
+  -Procesos:
+   -A: CPU=5, Llegada=0
+   -B: CPU=3, Llegada=1  
+   -C: CPU=1, Llegada=2
+
+<img width="1365" height="718" alt="image" src="https://github.com/user-attachments/assets/ee692ba6-6a49-494c-a7cf-4e9e918a5219" />
+<img width="698" height="391" alt="image" src="https://github.com/user-attachments/assets/e897a37c-bf02-4105-b56b-5fc5b5364479" />
+
+
+##Características
+  -No expropiativo: Sólo decide al terminar un proceso.
+  -Minimiza el tiempo de espera promedio.
+  -Requiere conocer la duración de antemano.
+
+Problema: Inanición (Starvation)
+-Si constantemente llegan procesos cortos, un proceso largo puede NUNCA ejecutarse.
+
+
+## SRTF (Shortest Remaining Time First)
+
+  -Procesos:
+   -A: CPU=5, Llegada=0
+   -B: CPU=3, Llegada=1  
+   -C: CPU=1, Llegada=2
+
+<img width="1365" height="715" alt="image" src="https://github.com/user-attachments/assets/7946c627-de58-4225-8f49-a838884d498a" />
+<img width="696" height="389" alt="image" src="https://github.com/user-attachments/assets/b8876c4a-e1bb-4d61-b8e6-a7b100e73bc7" />
+
+## Características
+  -SÍ es expropiativo: Puede interrumpir en cualquier momento.
+  -Optimiza el tiempo de respuesta.
+  -Mayor overhead por cambios de contexto.
+
+  Ventaja sobre SJF
+  -SRTF puede expropiar cuando llega un proceso más corto, mientras que SJF espera a que termine el actual.
+
+
+## ROUND ROBIN (RR)
+
+En éste algoritmo, al tener la característica de sistema de tiempo compartido,
+tendremos que especificar el Quantum.
+
+ -QUANTUM = 2 
+
+  -Procesos:
+   -A: CPU=5, Llegada=0
+   -B: CPU=3, Llegada=1  
+   -C: CPU=4, Llegada=2
+
+<img width="1365" height="713" alt="image" src="https://github.com/user-attachments/assets/fe36d9ca-5f6b-4fb8-b109-a4c61cd79798" />
+<img width="695" height="387" alt="image" src="https://github.com/user-attachments/assets/26f80fe4-4197-4ffe-ad93-5227e9058cb1" />
+
+
+
 ## Autores
 
 Proyecto desarrollado en el curso de Sistemas Operativos.
 
 Universidad Mariano Gálvez – 6to semestre.
-
